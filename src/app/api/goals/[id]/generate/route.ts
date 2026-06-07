@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { groq, MODELS } from "@/lib/groq";
 import { buildLearningPathPrompt } from "@/lib/prompts/learning-path";
+import { buildQuizPrompt } from "@/lib/prompts/quiz";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -26,6 +28,83 @@ type ParsedPath = {
   overview: string;
   phases: ParsedPhase[];
 };
+
+type GeneratedQuestion = {
+  type: "mcq" | "essay";
+  question: string;
+  options?: string[];
+  correct_index?: number;
+  explanation?: string;
+  model_answer?: string;
+  grading_criteria?: string[];
+};
+
+async function generatePhaseQuiz(
+  phaseId: string,
+  phaseTitle: string,
+  goalTitle: string,
+  level: string,
+  topics: ParsedTopic[]
+): Promise<void> {
+  const prompt = buildQuizPrompt({
+    phaseTitle,
+    goalTitle,
+    level,
+    topicSummaries: topics.map((t) => `${t.title}: ${t.description}`),
+    difficulty: "medium",
+    count: 7,
+    types: ["mcq", "essay"],
+  });
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: MODELS.generation,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.6,
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as { questions?: GeneratedQuestion[] };
+    const questions = (parsed.questions ?? []).slice(0, 7);
+
+    if (questions.length === 0) return;
+
+    await prisma.phaseQuiz.upsert({
+      where: { phase_id: phaseId },
+      update: {
+        questions: {
+          deleteMany: {},
+          create: questions.map((q, i) => ({
+            type: q.type,
+            question: q.question,
+            options: q.options != null ? (q.options as Prisma.InputJsonValue) : Prisma.JsonNull,
+            correct_index: q.correct_index ?? null,
+            explanation: q.explanation ?? null,
+            model_answer: q.model_answer ?? null,
+            order_index: i,
+          })),
+        },
+      },
+      create: {
+        phase_id: phaseId,
+        difficulty: "medium",
+        questions: {
+          create: questions.map((q, i) => ({
+            type: q.type,
+            question: q.question,
+            options: q.options != null ? (q.options as Prisma.InputJsonValue) : Prisma.JsonNull,
+            correct_index: q.correct_index ?? null,
+            explanation: q.explanation ?? null,
+            model_answer: q.model_answer ?? null,
+            order_index: i,
+          })),
+        },
+      },
+    });
+  } catch {
+    // Non-fatal: quiz generation failure shouldn't block path generation
+  }
+}
 
 export async function POST(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
@@ -80,18 +159,14 @@ export async function POST(_req: NextRequest, { params }: Params) {
     );
   }
 
-  if (
-    !parsed.phases ||
-    !Array.isArray(parsed.phases) ||
-    parsed.phases.length === 0
-  ) {
+  if (!parsed.phases || !Array.isArray(parsed.phases) || parsed.phases.length === 0) {
     return NextResponse.json(
       { error: "AI returned an invalid learning path structure. Please try again." },
       { status: 502 }
     );
   }
 
-  // Delete existing path (cascade removes phases + topics)
+  // Delete existing path (cascade removes phases + topics + phase quizzes)
   await prisma.learningPath.deleteMany({ where: { goal_id: id } });
 
   const learningPath = await prisma.learningPath.create({
@@ -123,6 +198,19 @@ export async function POST(_req: NextRequest, { params }: Params) {
       },
     },
   });
+
+  // Generate phase quizzes in parallel (non-blocking — errors are swallowed)
+  void Promise.all(
+    learningPath.phases.map((phase, i) =>
+      generatePhaseQuiz(
+        phase.id,
+        phase.title,
+        goal.title,
+        goal.level,
+        parsed.phases[i]?.topics ?? []
+      )
+    )
+  );
 
   return NextResponse.json({ path: learningPath, overview: parsed.overview ?? "" });
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type Goal = {
   id: string;
@@ -36,6 +37,7 @@ function MessageBubble({ message }: { message: Message }) {
 }
 
 export default function ChatPage() {
+  const searchParams = useSearchParams();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [selectedGoalId, setSelectedGoalId] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,7 +59,9 @@ export default function ChatPage() {
       if (res.ok) {
         const data = await res.json() as Goal[];
         setGoals(data);
-        if (data.length > 0) setSelectedGoalId(data[0].id);
+        const paramGoalId = searchParams.get("goalId");
+        const preferred = data.find((g) => g.id === paramGoalId) ?? data[0];
+        if (preferred) setSelectedGoalId(preferred.id);
       }
       setLoadingGoals(false);
     }

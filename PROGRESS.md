@@ -1,6 +1,6 @@
 # PathAI — Tiến trình implement
 
-> Cập nhật lần cuối: 2026-06-07
+> Cập nhật lần cuối: 2026-06-07 (Modules 5–8 + Quiz System hoàn thành)
 
 ---
 
@@ -12,10 +12,11 @@
 | 2 | Goals CRUD | Hoàn thành | 100% |
 | 3 | AI Learning Path Generation | Hoàn thành | 100% |
 | 4 | Progress Tracking | Hoàn thành | 100% |
-| 5 | AI Weekly Review | Chưa bắt đầu | 0% |
-| 6 | Chat Assistant | Chưa bắt đầu | 0% |
-| 7 | Resource Library | Chưa bắt đầu | 0% |
-| 8 | Dashboard & Analytics | Chưa bắt đầu | 0% |
+| 5 | AI Weekly Review | Hoàn thành | 100% |
+| 6 | Chat Assistant | Hoàn thành | 100% |
+| 7 | Resource Library | Hoàn thành | 100% |
+| 8 | Dashboard & Analytics | Hoàn thành | 100% |
+| 9 | Quiz System (MCQ + Essay + AI Grading) | Hoàn thành | 100% |
 
 ---
 
@@ -135,57 +136,152 @@ src/app/(dashboard)/dashboard/page.tsx             (streak)
 
 ---
 
-## Module 5 — AI Weekly Review `CHƯA BẮT ĐẦU`
+## Module 5 — AI Weekly Review `HOÀN THÀNH`
 
-### Mục tiêu
-Hàng tuần AI phân tích tiến độ và đề xuất điều chỉnh kế hoạch.
+### Đã implement
+- [x] Prompt template (`src/lib/prompts/weekly-review.ts`) — phân tích phase-level, topics trong 7 ngày, tuần hiện tại của goal
+- [x] `POST /api/review/generate` — gọi Groq `llama-3.3-70b-versatile`, upsert `WeeklyReview` (1 review/week/goal)
+- [x] `GET /api/goals/[id]/reviews` — list review history của goal
+- [x] `/dashboard/review` — goal selector + generate button + collapsible review cards
+- [x] Review hiển thị: summary, strengths (xanh), challenges (vàng), next week adjustments (xanh dương), motivation quote
+- [x] TypeScript: 0 errors
 
-### Cần implement
-- [ ] `POST /api/review/generate` — gọi AI phân tích progress tuần
-- [ ] Prompt template (`src/lib/prompts/weekly-review.ts`)
-- [ ] `/dashboard/review` — hiển thị review + suggestions
-- [ ] Lưu review history vào DB
+### Files chính
+```
+src/lib/prompts/weekly-review.ts
+src/app/api/review/generate/route.ts
+src/app/api/goals/[id]/reviews/route.ts
+src/app/(dashboard)/dashboard/review/page.tsx
+```
 
----
-
-## Module 6 — Chat Assistant `CHƯA BẮT ĐẦU`
-
-### Mục tiêu
-Chat Q&A context-aware: AI biết user đang học gì, tiến độ đến đâu.
-
-### Cần implement
-- [ ] Streaming API route (`POST /api/chat`)
-- [ ] Prompt injection: user context (current goal, progress)
-- [ ] Model: `llama-3.1-8b-instant` (Groq, nhanh)
-- [ ] Chat UI component (`src/components/chat/`)
-- [ ] Lưu conversation history
-
----
-
-## Module 7 — Resource Library `CHƯA BẮT ĐẦU`
-
-### Mục tiêu
-AI gợi ý tài nguyên (video, bài viết, khoá học) cho từng topic.
-
-### Cần implement
-- [ ] `GET /api/topics/[id]/resources` — list resources
-- [ ] AI gợi ý resource khi generate learning path
-- [ ] User có thể bookmark resource
-- [ ] Filter theo type (video / article / course)
+### Review JSON format
+```json
+{
+  "summary": "...",
+  "strengths": ["..."],
+  "challenges": ["..."],
+  "adjustments": ["..."],
+  "motivation": "..."
+}
+```
 
 ---
 
-## Module 8 — Dashboard & Analytics `CHƯA BẮT ĐẦU`
+## Module 6 — Chat Assistant `HOÀN THÀNH`
 
-### Mục tiêu
-Trang tổng hợp: số goal, tiến độ tổng, streak, biểu đồ học tập.
+### Đã implement
+- [x] `POST /api/chat` — streaming với Groq `llama-3.1-8b-instant`, context injection (goal info + phases + progress %)
+- [x] Lưu user message trước khi stream, lưu assistant message sau khi stream kết thúc
+- [x] `GET /api/goals/[id]/messages` — load history (100 messages gần nhất)
+- [x] `DELETE /api/goals/[id]/messages` — xóa toàn bộ conversation của goal
+- [x] `/dashboard/chat` — streaming UI real-time, goal selector, prompt suggestions, đọc `?goalId=` từ URL
+- [x] Typing indicator (3 bouncing dots) khi AI đang trả lời
+- [x] `Shift+Enter` cho newline, `Enter` để gửi
+- [x] TypeScript: 0 errors
 
-### Cần implement
-- [ ] `GET /api/stats` — tổng hợp số liệu
-- [ ] Widget: Goals active / completed
-- [ ] Widget: Topics completed this week
-- [ ] Widget: Current streak
-- [ ] Chart: learning activity (TanStack Query + dữ liệu thật)
+### Files chính
+```
+src/app/api/chat/route.ts
+src/app/api/goals/[id]/messages/route.ts
+src/app/(dashboard)/dashboard/chat/page.tsx
+```
+
+### Model AI
+- Chat: `llama-3.1-8b-instant` (Groq, streaming, nhanh)
+- Context: system prompt với goal info + phases + % tiến độ + 20 messages gần nhất
+
+---
+
+## Module 7 — Resource Library `HOÀN THÀNH`
+
+### Đã implement
+- [x] `GET /api/topics/[id]/resources` — list resources của topic (verify ownership qua chain)
+- [x] `POST /api/topics/[id]/resources` — AI-generate 4–5 resources hoặc user thêm thủ công
+- [x] AI tự động xóa resources cũ (ai_suggested) và replace khi regenerate
+- [x] Goal detail page: "Resources ↓" toggle per topic, lazy load khi mở lần đầu
+- [x] Type badges: article (xanh), video (đỏ), course (vàng), doc (xám)
+- [x] "Generate AI resource suggestions" nếu topic chưa có resource
+- [x] "Refresh" button để regenerate
+- [x] TypeScript: 0 errors
+
+### Files chính
+```
+src/app/api/topics/[id]/resources/route.ts
+src/app/(dashboard)/dashboard/goals/[id]/page.tsx  (thêm ResourcesSection component)
+```
+
+---
+
+## Module 8 — Dashboard & Analytics `HOÀN THÀNH`
+
+### Đã implement
+- [x] `GET /api/stats` — endpoint tổng hợp (goals breakdown, topics, hours, streak, recent activity)
+- [x] Dashboard — 4 stat cards: Active goals, Topics completed, This week, Day streak
+- [x] "Estimated hours studied" card (sum of completed topics' estimated_hrs)
+- [x] Recent completions table (5 entries gần nhất, link đến goal)
+- [x] Quick links: Weekly Review + Chat Assistant cards
+- [x] NavLinks cập nhật: Overview | Goals | Review | Chat
+- [x] TypeScript: 0 errors
+
+### Files chính
+```
+src/app/api/stats/route.ts
+src/app/(dashboard)/dashboard/page.tsx  (rewrite)
+src/components/nav-links.tsx            (thêm Review + Chat links)
+```
+
+---
+
+---
+
+## Module 9 — Quiz System `HOÀN THÀNH`
+
+### Đã implement
+- [x] Schema: `PhaseQuiz` (unique per phase), `PhaseQuizQuestion` (MCQ + Essay), `PhaseQuizAttempt`, `PracticeAttempt`
+- [x] Enums: `QuizDifficulty` (easy/medium/hard), `QuestionType` (mcq/essay)
+- [x] **Auto-generate phase quiz** khi user generate learning path — `Promise.all` parallel, non-blocking
+- [x] Prompt builder (`src/lib/prompts/quiz.ts`) — hỗ trợ difficulty, count, types (MCQ/Essay/Mixed)
+- [x] AI grader prompt (`src/lib/prompts/quiz-grader.ts`) — batch grade essay answers, trả về score 0–10 + feedback
+- [x] `GET /api/phases/[id]/quiz` — trả quiz + questions (ẩn correct_index/model_answer khỏi client)
+- [x] `POST /api/phases/[id]/quiz/attempt` — MCQ auto-grade, Essay AI-grade (batch Groq call), lưu PhaseQuizAttempt
+- [x] `POST /api/phases/[id]/practice` — generate practice questions với custom options, KHÔNG lưu DB
+- [x] `POST /api/phases/[id]/practice/grade` — grade MCQ + AI grade Essay, lưu PracticeAttempt (score only)
+- [x] UI: "Quiz" button trong header mỗi phase → QuizModal
+- [x] Modal mode-select: Phase Quiz (official) vs Practice (custom options)
+- [x] Practice settings: số câu (5/10/15/20), độ khó (easy/medium/hard), loại (MCQ/Essay/Mixed)
+- [x] Navigation dots: xám = chưa làm, xanh = đã làm, pill = câu hiện tại
+- [x] Essay: textarea per-question, state giữ nguyên khi chuyển câu
+- [x] Grading spinner "AI is grading" → kết quả per-question: MCQ (correct/wrong + explanation), Essay (score/10 + AI feedback)
+- [x] Lịch sử điểm past attempts (badge màu: xanh ≥80%, vàng ≥60%, đỏ <60%)
+- [x] Retake (giữ nguyên questions) + Back to menu
+- [x] TypeScript: 0 errors
+
+### Files chính
+```
+src/lib/prompts/quiz.ts                              (rewrite)
+src/lib/prompts/quiz-grader.ts                       (new)
+src/app/api/phases/[id]/quiz/route.ts                (new — GET)
+src/app/api/phases/[id]/quiz/attempt/route.ts        (new — POST grade + store)
+src/app/api/phases/[id]/practice/route.ts            (new — POST generate)
+src/app/api/phases/[id]/practice/grade/route.ts      (new — POST grade + store)
+src/app/api/goals/[id]/generate/route.ts             (updated — auto phase quiz)
+src/app/(dashboard)/dashboard/goals/[id]/page.tsx    (updated — QuizModal)
+```
+
+### Scoring logic
+| Loại câu | Điểm tối đa | Cách tính |
+|----------|-------------|-----------|
+| MCQ | 1 điểm | server-side so sánh `chosen_index` vs `correct_index` |
+| Essay | 10 điểm | Groq AI đọc bài + model_answer + tiêu chí, trả về 0–10 |
+| Tổng | (sum earned / sum max) × 100 | Scale về 0–100% |
+
+### Hai chế độ quiz
+| | Phase Quiz | Practice Quiz |
+|-|------------|---------------|
+| Khi nào tạo | Auto khi generate path | User-triggered |
+| Questions lưu DB | ✓ vĩnh viễn | ✗ state only |
+| Score lưu DB | ✓ PhaseQuizAttempt | ✓ PracticeAttempt |
+| Configurable | ✗ (7 câu, medium) | ✓ count/difficulty/types |
 
 ---
 
@@ -196,7 +292,7 @@ Trang tổng hợp: số goal, tiến độ tổng, streak, biểu đồ học t
 - [x] Prisma v5 + MySQL 8 (Docker)
 - [x] Jest + Testing Library (unit tests)
 - [x] Git + GitHub (`toikobi401/learning-path-app`)
-- [ ] AI SDK: Groq (`llama-3.3-70b`, `llama-3.1-8b-instant`)
+- [x] AI SDK: Groq (`llama-3.3-70b-versatile` generation, `llama-3.1-8b-instant` chat)
 - [ ] CI/CD (GitHub Actions)
 - [ ] Deploy (Vercel + Railway/PlanetScale)
 
