@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { groq, MODELS } from "@/lib/groq";
 import { buildEssayGraderPrompt, type EssayGradeInput } from "@/lib/prompts/quiz-grader";
+import { getUserAiLanguage, getAiJsonLanguageInstruction } from "@/lib/i18n/ai-language";
 
 type SubmittedAnswer =
   | { type: "mcq"; chosen_index: number }
@@ -35,6 +36,8 @@ export async function POST(
   if (!Array.isArray(body.answers)) {
     return NextResponse.json({ error: "answers must be an array" }, { status: 400 });
   }
+
+  const aiLang = await getUserAiLanguage(session.user.id);
 
   const quiz = await prisma.phaseQuiz.findFirst({
     where: {
@@ -98,7 +101,7 @@ export async function POST(
     try {
       const completion = await groq.chat.completions.create({
         model: MODELS.generation,
-        messages: [{ role: "user", content: buildEssayGraderPrompt(essayInputs) }],
+        messages: [{ role: "user", content: buildEssayGraderPrompt(essayInputs) + getAiJsonLanguageInstruction(aiLang) }],
         response_format: { type: "json_object" },
         temperature: 0.3,
       });

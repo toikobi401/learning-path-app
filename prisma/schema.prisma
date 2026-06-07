@@ -28,6 +28,18 @@ model User {
   weekly_reviews        WeeklyReview[]
   phase_quiz_attempts   PhaseQuizAttempt[]
   practice_attempts     PracticeAttempt[]
+  settings              UserSettings?
+}
+
+model UserSettings {
+  id          String   @id @default(cuid())
+  user_id     String   @unique
+  ui_language String   @default("vi")
+  ai_language String   @default("vi")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model Account {

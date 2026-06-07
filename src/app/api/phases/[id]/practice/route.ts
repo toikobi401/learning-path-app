@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { groq, MODELS } from "@/lib/groq";
 import { buildQuizPrompt, type QuizDifficulty, type QuestionType } from "@/lib/prompts/quiz";
+import { getUserAiLanguage, getAiJsonLanguageInstruction } from "@/lib/i18n/ai-language";
 
 type GeneratedQuestion = {
   type: "mcq" | "essay";
@@ -39,16 +40,19 @@ export async function POST(
   ) as QuestionType[];
   if (types.length === 0) types.push("mcq");
 
-  const phase = await prisma.phase.findFirst({
-    where: {
-      id: phaseId,
-      path: { goal: { user_id: session.user.id } },
-    },
-    include: {
-      topics: { select: { title: true, description: true }, orderBy: { order_index: "asc" } },
-      path: { include: { goal: { select: { title: true, level: true } } } },
-    },
-  });
+  const [phase, aiLang] = await Promise.all([
+    prisma.phase.findFirst({
+      where: {
+        id: phaseId,
+        path: { goal: { user_id: session.user.id } },
+      },
+      include: {
+        topics: { select: { title: true, description: true }, orderBy: { order_index: "asc" } },
+        path: { include: { goal: { select: { title: true, level: true } } } },
+      },
+    }),
+    getUserAiLanguage(session.user.id),
+  ]);
   if (!phase) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const prompt = buildQuizPrompt({
@@ -65,7 +69,7 @@ export async function POST(
   try {
     const completion = await groq.chat.completions.create({
       model: MODELS.generation,
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content: prompt + getAiJsonLanguageInstruction(aiLang) }],
       response_format: { type: "json_object" },
       temperature: 0.7,
     });

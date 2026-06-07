@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { groq, MODELS } from "@/lib/groq";
 import { buildEssayGraderPrompt, type EssayGradeInput } from "@/lib/prompts/quiz-grader";
 import type { QuizDifficulty } from "@/lib/prompts/quiz";
+import { getUserAiLanguage, getAiJsonLanguageInstruction } from "@/lib/i18n/ai-language";
 
 type PracticeQuestion = {
   type: "mcq" | "essay";
@@ -52,9 +53,12 @@ export async function POST(
     return NextResponse.json({ error: "questions required" }, { status: 400 });
   }
 
-  const phase = await prisma.phase.findFirst({
-    where: { id: phaseId, path: { goal: { user_id: session.user.id } } },
-  });
+  const [phase, aiLang] = await Promise.all([
+    prisma.phase.findFirst({
+      where: { id: phaseId, path: { goal: { user_id: session.user.id } } },
+    }),
+    getUserAiLanguage(session.user.id),
+  ]);
   if (!phase) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const feedback: FeedbackEntry[] = [];
@@ -107,7 +111,7 @@ export async function POST(
     try {
       const completion = await groq.chat.completions.create({
         model: MODELS.generation,
-        messages: [{ role: "user", content: buildEssayGraderPrompt(essayInputs) }],
+        messages: [{ role: "user", content: buildEssayGraderPrompt(essayInputs) + getAiJsonLanguageInstruction(aiLang) }],
         response_format: { type: "json_object" },
         temperature: 0.3,
       });

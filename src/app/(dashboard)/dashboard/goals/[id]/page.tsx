@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useLanguage } from "@/lib/i18n/context";
+import type { Translations } from "@/lib/i18n/translations";
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 type TopicStatus = "not_started" | "in_progress" | "completed";
@@ -160,11 +162,14 @@ function ResourcesSection({
   topicId,
   resources,
   onLoad,
+  t,
 }: {
   topicId: string;
   resources: Resource[] | null | undefined;
   onLoad: (topicId: string, data: Resource[]) => void;
+  t: Translations;
 }) {
+  const gd = t.goalDetail;
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -182,7 +187,7 @@ function ResourcesSection({
     return (
       <div className="flex items-center gap-2 pt-2 text-xs text-gray-400">
         <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-gray-600" />
-        Loading resources…
+        {gd.loadingResources}
       </div>
     );
   if (resources === undefined) return null;
@@ -192,21 +197,21 @@ function ResourcesSection({
       {generating && (
         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
           <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-gray-600 dark:border-gray-600 dark:border-t-gray-400" />
-          Generating resource suggestions…
+          {gd.generatingResources}
         </div>
       )}
       {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
       {!generating && resources.length === 0 && (
         <button onClick={generateResources} className="text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-          + Generate AI resource suggestions
+          {gd.generateResources}
         </button>
       )}
       {resources.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-gray-400 dark:text-gray-500">Resources</p>
+            <p className="text-xs font-medium text-gray-400 dark:text-gray-500">{gd.resourcesLabel}</p>
             {!generating && (
-              <button onClick={generateResources} className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">Refresh</button>
+              <button onClick={generateResources} className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">{gd.refreshResources}</button>
             )}
           </div>
           <div className="space-y-1.5">
@@ -230,27 +235,24 @@ function ResourcesSection({
 
 // ─── Quiz Modal ───────────────────────────────────────────────────────────────
 type QuizMode = "phase" | "practice";
-type QuizPhase = "mode-select" | "loading" | "settings" | "generating" | "question" | "grading" | "result";
+type QuizPhaseState = "mode-select" | "loading" | "settings" | "generating" | "question" | "grading" | "result";
 
-function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
+function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t: Translations }) {
+  const q = t.quiz;
   const [mode, setMode] = useState<QuizMode>("phase");
-  const [quizPhase, setQuizPhase] = useState<QuizPhase>("mode-select");
+  const [quizPhase, setQuizPhase] = useState<QuizPhaseState>("mode-select");
 
-  // Phase quiz state
   const [phaseQuiz, setPhaseQuiz] = useState<PhaseQuizData | null>(null);
 
-  // Practice settings
   const [practiceCount, setPracticeCount] = useState(5);
   const [practiceDifficulty, setPracticeDifficulty] = useState<QuizDifficulty>("medium");
   const [practiceTypes, setPracticeTypes] = useState<QuestionType[]>(["mcq"]);
 
-  // Active quiz (both modes)
   const [questions, setQuestions] = useState<(PhaseQuizQuestion | PracticeQuestion)[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<SubmittedAnswer[]>([]);
   const [essayDraft, setEssayDraft] = useState<Record<number, string>>({});
 
-  // Results
   const [feedback, setFeedback] = useState<FeedbackEntry[]>([]);
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useState<number | null>(null);
@@ -258,7 +260,6 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
 
   const [error, setError] = useState<string | null>(null);
 
-  // Load phase quiz on mount
   useEffect(() => {
     async function load() {
       setQuizPhase("loading");
@@ -277,26 +278,23 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
     load();
   }, [phase.id]);
 
-  // ── Start phase quiz ──
   function startPhaseQuiz() {
     if (!phaseQuiz) return;
     setMode("phase");
     setQuestions(phaseQuiz.questions);
-    setAnswers(phaseQuiz.questions.map((q) => q.type === "mcq" ? { type: "mcq", chosen_index: -1 } : { type: "essay", essay_text: "" }));
+    setAnswers(phaseQuiz.questions.map((qq) => qq.type === "mcq" ? { type: "mcq", chosen_index: -1 } : { type: "essay", essay_text: "" }));
     setEssayDraft({});
     setCurrentQ(0);
     setError(null);
     setQuizPhase("question");
   }
 
-  // ── Start practice: show settings ──
   function openSettings() {
     setMode("practice");
     setError(null);
     setQuizPhase("settings");
   }
 
-  // ── Generate practice questions ──
   async function generatePractice() {
     setQuizPhase("generating");
     setError(null);
@@ -313,13 +311,12 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
     }
     const qs = data.questions ?? [];
     setQuestions(qs);
-    setAnswers(qs.map((q) => q.type === "mcq" ? { type: "mcq", chosen_index: -1 } : { type: "essay", essay_text: "" }));
+    setAnswers(qs.map((qq) => qq.type === "mcq" ? { type: "mcq", chosen_index: -1 } : { type: "essay", essay_text: "" }));
     setEssayDraft({});
     setCurrentQ(0);
     setQuizPhase("question");
   }
 
-  // ── Answer handlers ──
   function chooseMcq(optIdx: number) {
     setAnswers((prev) => {
       const next = [...prev];
@@ -337,12 +334,10 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
     });
   }
 
-  // ── Submit ──
   async function submitQuiz() {
     setQuizPhase("grading");
     setError(null);
 
-    // Finalise any pending essay drafts
     const finalAnswers = answers.map((a, i) => {
       if (a.type === "essay" && essayDraft[i] !== undefined)
         return { type: "essay" as const, essay_text: essayDraft[i] };
@@ -397,16 +392,15 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
       <div className="relative flex w-full max-w-xl flex-col rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 max-h-[90vh]">
 
-        {/* Modal header */}
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800">
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Quiz</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">{t.goalDetail.quiz}</p>
             <h2 className="mt-0.5 truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{phase.title}</h2>
           </div>
           <div className="ml-4 flex shrink-0 items-center gap-3">
             {bestScore !== null && (
               <span className="text-xs text-gray-400 dark:text-gray-500">
-                Best <span className="font-semibold text-gray-700 dark:text-gray-300">{bestScore}%</span>
+                {q.best} <span className="font-semibold text-gray-700 dark:text-gray-300">{bestScore}%</span>
               </span>
             )}
             <button
@@ -420,29 +414,25 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
           </div>
         </div>
 
-        {/* Modal body */}
         <div className="flex-1 overflow-y-auto p-5">
 
-          {/* Loading */}
           {quizPhase === "loading" && (
             <div className="flex flex-col items-center gap-3 py-12">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900 dark:border-gray-700 dark:border-t-gray-100" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">Loading quiz…</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{q.loading}</p>
             </div>
           )}
 
-          {/* Mode select */}
           {quizPhase === "mode-select" && (
             <div className="space-y-4">
               {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">{error}</p>}
 
-              {/* Phase Quiz card */}
               <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Phase Quiz</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{q.phaseQuiz}</p>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Official quiz auto-generated for this phase · {phaseQuiz ? `${phaseQuiz.questions.length} questions` : "not ready yet"}
+                      {q.phaseQuizDesc} · {phaseQuiz ? `${phaseQuiz.questions.length} ${q.questions}` : q.notReady}
                     </p>
                     {pastAttempts.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -459,43 +449,38 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                     disabled={!phaseQuiz || phaseQuiz.questions.length === 0}
                     className="shrink-0 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-700 disabled:opacity-40 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
                   >
-                    Start
+                    {q.start}
                   </button>
                 </div>
               </div>
 
-              {/* Practice card */}
               <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Practice Quiz</p>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Generate fresh questions with custom options · scores saved, questions temporary
-                    </p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{q.practiceQuiz}</p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{q.practiceQuizDesc}</p>
                   </div>
                   <button
                     onClick={openSettings}
                     className="shrink-0 rounded-md border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                   >
-                    Configure
+                    {q.configure}
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Practice settings */}
           {quizPhase === "settings" && (
             <div className="space-y-5">
               <button onClick={() => setQuizPhase("mode-select")} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                ← Back
+                {q.back}
               </button>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Practice settings</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{q.practiceSettings}</h3>
               {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">{error}</p>}
 
-              {/* Question count */}
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">Number of questions</label>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">{q.numQuestions}</label>
                 <div className="flex gap-2">
                   {[5, 10, 15, 20].map((n) => (
                     <button
@@ -509,9 +494,8 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                 </div>
               </div>
 
-              {/* Difficulty */}
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">Difficulty</label>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">{q.difficulty}</label>
                 <div className="flex gap-2">
                   {(["easy", "medium", "hard"] as QuizDifficulty[]).map((d) => (
                     <button
@@ -525,11 +509,10 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                 </div>
               </div>
 
-              {/* Question types */}
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">Question types</label>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">{q.questionTypes}</label>
                 <div className="flex gap-2">
-                  {([["mcq", "Multiple choice"], ["essay", "Essay"], ["mcq", "Mixed"]] as const).map(([val, label], i) => {
+                  {([["mcq", q.multipleChoice], ["essay", q.essay], ["mcq", q.mixed]] as const).map(([val, label], i) => {
                     const isMixed = i === 2;
                     const isActive = isMixed
                       ? practiceTypes.includes("mcq") && practiceTypes.includes("essay")
@@ -554,30 +537,27 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                 onClick={generatePractice}
                 className="w-full rounded-md bg-gray-900 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
               >
-                Generate questions
+                {q.generateQuestions}
               </button>
             </div>
           )}
 
-          {/* Generating */}
           {quizPhase === "generating" && (
             <div className="flex flex-col items-center gap-3 py-12">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900 dark:border-gray-700 dark:border-t-gray-100" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">Generating {practiceCount} questions…</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{q.generatingN} {practiceCount} {q.questions}…</p>
             </div>
           )}
 
-          {/* Question */}
           {quizPhase === "question" && currentQuestion && (
             <div>
-              {/* Progress dots */}
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {currentQ + 1} / {questions.length}
-                  <span className="ml-2 capitalize text-gray-400 dark:text-gray-600">· {currentQuestion.type === "mcq" ? "Multiple choice" : "Essay"}</span>
+                  <span className="ml-2 capitalize text-gray-400 dark:text-gray-600">· {currentQuestion.type === "mcq" ? q.multipleChoiceTag : q.essayTag}</span>
                 </span>
                 <div className="flex gap-1">
-                  {questions.map((_q, i) => {
+                  {questions.map((_qq, i) => {
                     const ans = answers[i];
                     const answered = ans?.type === "mcq" ? ans.chosen_index >= 0 : (essayDraft[i] ?? ans?.essay_text ?? "").trim().length > 0;
                     return (
@@ -593,7 +573,6 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                 {currentQuestion.question}
               </p>
 
-              {/* MCQ options */}
               {currentQuestion.type === "mcq" && "options" in currentQuestion && currentQuestion.options && (
                 <div className="space-y-2">
                   {(currentQuestion.options as string[]).map((opt, optIdx) => {
@@ -609,32 +588,30 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                 </div>
               )}
 
-              {/* Essay textarea */}
               {currentQuestion.type === "essay" && (
                 <textarea
                   value={currentEssayText}
                   onChange={(e) => updateEssay(e.target.value)}
-                  placeholder="Write your answer here…"
+                  placeholder={q.essayPlaceholder}
                   rows={6}
                   className="w-full rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:ring-gray-100"
                 />
               )}
 
-              {/* Navigation */}
               <div className="mt-5 flex items-center justify-between">
                 <button
-                  onClick={() => setCurrentQ((q) => Math.max(0, q - 1))}
+                  onClick={() => setCurrentQ((qq) => Math.max(0, qq - 1))}
                   disabled={currentQ === 0}
                   className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                 >
-                  ← Prev
+                  {q.prev}
                 </button>
                 {currentQ < questions.length - 1 ? (
                   <button
-                    onClick={() => setCurrentQ((q) => q + 1)}
+                    onClick={() => setCurrentQ((qq) => qq + 1)}
                     className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900"
                   >
-                    Next →
+                    {q.next}
                   </button>
                 ) : (
                   <button
@@ -642,28 +619,26 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                     disabled={!allAnswered}
                     className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
                   >
-                    Submit & grade
+                    {q.submitGrade}
                   </button>
                 )}
               </div>
             </div>
           )}
 
-          {/* Grading */}
           {quizPhase === "grading" && (
             <div className="flex flex-col items-center gap-3 py-12">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-indigo-600 dark:border-gray-700 dark:border-t-indigo-400" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">AI is grading your answers…</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{q.grading}</p>
             </div>
           )}
 
-          {/* Result */}
           {quizPhase === "result" && (
             <div>
               <div className="mb-5 flex flex-col items-center gap-2 py-4">
                 <ScoreRing score={score} />
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {score >= 80 ? "Excellent work!" : score >= 60 ? "Good effort — review below." : "Keep studying — you got this!"}
+                  {score >= 80 ? q.excellent : score >= 60 ? q.goodEffort : q.keepStudying}
                 </p>
               </div>
 
@@ -681,15 +656,15 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                           {f.type === "mcq" && (
                             <>
                               {f.chosen_index !== f.correct_index && (
-                                <p className="text-gray-500 dark:text-gray-400">Your answer: <span className="font-medium text-red-600 dark:text-red-400">{f.options?.[f.chosen_index ?? -1] ?? "—"}</span></p>
+                                <p className="text-gray-500 dark:text-gray-400">{q.yourAnswer} <span className="font-medium text-red-600 dark:text-red-400">{f.options?.[f.chosen_index ?? -1] ?? "—"}</span></p>
                               )}
-                              <p className="text-gray-500 dark:text-gray-400">Correct: <span className="font-medium text-green-700 dark:text-green-400">{f.options?.[f.correct_index ?? -1] ?? "—"}</span></p>
+                              <p className="text-gray-500 dark:text-gray-400">{q.correct} <span className="font-medium text-green-700 dark:text-green-400">{f.options?.[f.correct_index ?? -1] ?? "—"}</span></p>
                               {f.explanation && <p className="italic text-gray-400 dark:text-gray-500">{f.explanation}</p>}
                             </>
                           )}
                           {f.type === "essay" && (
                             <>
-                              <p className="text-gray-500 dark:text-gray-400">Score: <span className="font-semibold text-gray-700 dark:text-gray-300">{f.score}/{f.max_score}</span></p>
+                              <p className="text-gray-500 dark:text-gray-400">{q.score} <span className="font-semibold text-gray-700 dark:text-gray-300">{f.score}/{f.max_score}</span></p>
                               {f.feedback && <p className="italic text-gray-400 dark:text-gray-500">{f.feedback}</p>}
                             </>
                           )}
@@ -704,19 +679,19 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
                 <button
                   onClick={() => {
                     setCurrentQ(0);
-                    setAnswers(questions.map((q) => q.type === "mcq" ? { type: "mcq", chosen_index: -1 } : { type: "essay", essay_text: "" }));
+                    setAnswers(questions.map((qq) => qq.type === "mcq" ? { type: "mcq", chosen_index: -1 } : { type: "essay", essay_text: "" }));
                     setEssayDraft({});
                     setQuizPhase("question");
                   }}
                   className="flex-1 rounded-md border border-gray-200 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
-                  Retake
+                  {q.retake}
                 </button>
                 <button
                   onClick={() => setQuizPhase("mode-select")}
                   className="flex-1 rounded-md bg-gray-900 py-2 text-xs font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900"
                 >
-                  Back to menu
+                  {q.backToMenu}
                 </button>
               </div>
             </div>
@@ -730,6 +705,9 @@ function QuizModal({ phase, onClose }: { phase: Phase; onClose: () => void }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function GoalDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { t, lang } = useLanguage();
+  const gd = t.goalDetail;
+
   const [goal, setGoal] = useState<Goal | null>(null);
   const [path, setPath] = useState<LearningPath | null>(null);
   const [progress, setProgress] = useState<ProgressMap>({});
@@ -817,38 +795,40 @@ export default function GoalDetailPage() {
   if (!goal) {
     return (
       <div className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">
-        Goal not found.{" "}
-        <Link href="/dashboard/goals" className="underline">Back to goals</Link>
+        {gd.goalNotFound}{" "}
+        <Link href="/dashboard/goals" className="underline">{gd.backToGoals}</Link>
       </div>
     );
   }
 
-  const deadline = new Date(goal.deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const deadline = new Date(goal.deadline).toLocaleDateString(
+    lang === "vi" ? "vi-VN" : "en-US",
+    { month: "long", day: "numeric", year: "numeric" }
+  );
   const allTopics = path?.phases.flatMap((p) => p.topics) ?? [];
   const totalTopics = allTopics.length;
   const totalCompleted = allTopics.filter((t) => (progress[t.id] ?? "not_started") === "completed").length;
   const progressPct = totalTopics > 0 ? Math.round((totalCompleted / totalTopics) * 100) : 0;
-  const totalHours = allTopics.reduce((sum, t) => sum + t.estimated_hrs, 0);
+  const totalHours = allTopics.reduce((sum, topic) => sum + topic.estimated_hrs, 0);
 
   return (
     <div className="max-w-3xl">
-      {/* Quiz modal */}
-      {quizPhase && <QuizModal phase={quizPhase} onClose={() => setQuizPhase(null)} />}
+      {quizPhase && <QuizModal phase={quizPhase} onClose={() => setQuizPhase(null)} t={t} />}
 
-      {/* Breadcrumb */}
       <div className="mb-6 flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
-        <Link href="/dashboard/goals" className="hover:text-gray-700 dark:hover:text-gray-300">Goals</Link>
+        <Link href="/dashboard/goals" className="hover:text-gray-700 dark:hover:text-gray-300">{t.nav.goals}</Link>
         <span>/</span>
         <span className="truncate text-gray-600 dark:text-gray-300">{goal.title}</span>
       </div>
 
-      {/* Goal header */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ring-1 ${LEVEL_COLOR[goal.level]}`}>{goal.level}</span>
-              <span className="text-xs text-gray-400 dark:text-gray-500">{goal.hours_per_day}h/day &middot; Due {deadline}</span>
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ring-1 ${LEVEL_COLOR[goal.level]}`}>
+                {t.goals.level[goal.level as keyof typeof t.goals.level]}
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{goal.hours_per_day}{t.goals.hoursPerDay} &middot; {gd.dueDate} {deadline}</span>
             </div>
             <h1 className="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">{goal.title}</h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{goal.description}</p>
@@ -857,12 +837,12 @@ export default function GoalDetailPage() {
             {path && (
               <button onClick={handleGenerate} disabled={generating}
                 className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
-                {generating ? "Regenerating…" : "Regenerate"}
+                {generating ? gd.regenerating : gd.regenerate}
               </button>
             )}
             <Link href={`/dashboard/chat?goalId=${goal.id}`}
               className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
-              Chat about this
+              {gd.chatAbout}
             </Link>
           </div>
         </div>
@@ -871,26 +851,26 @@ export default function GoalDetailPage() {
           <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-800">
             <div className="flex flex-wrap gap-5">
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">Duration</p>
-                <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{path.total_weeks} weeks</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{gd.duration}</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{path.total_weeks} {gd.weeks}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">Phases</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{gd.phases}</p>
                 <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{path.phases.length}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">Topics</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{gd.topics}</p>
                 <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{totalCompleted}/{totalTopics}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">Est. hours</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{gd.estHours}</p>
                 <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{Math.round(totalHours)}h</p>
               </div>
             </div>
             {totalTopics > 0 && (
               <div className="mt-4">
                 <div className="mb-1.5 flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
-                  <span>Overall progress</span>
+                  <span>{gd.overallProgress}</span>
                   <span>{progressPct}%</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -910,8 +890,8 @@ export default function GoalDetailPage() {
         <div className="mt-6 flex flex-col items-center gap-4 rounded-lg border border-gray-200 bg-white py-16 dark:border-gray-800 dark:bg-gray-900">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900 dark:border-gray-700 dark:border-t-gray-100" />
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Generating your personalized path…</p>
-            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">This usually takes 15–30 seconds. Phase quizzes are generated in the background.</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{gd.generating}</p>
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{gd.generatingDesc}</p>
           </div>
         </div>
       )}
@@ -924,41 +904,37 @@ export default function GoalDetailPage() {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">No learning path yet</p>
-            <p className="mx-auto mt-1 max-w-xs text-xs text-gray-500 dark:text-gray-400">
-              PathAI will analyze your goal and create a structured, week-by-week curriculum tailored to your level and schedule.
-            </p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{gd.noPath}</p>
+            <p className="mx-auto mt-1 max-w-xs text-xs text-gray-500 dark:text-gray-400">{gd.noPathDesc}</p>
           </div>
           <button onClick={handleGenerate}
             className="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300">
-            Generate learning path
+            {gd.generatePath}
           </button>
         </div>
       )}
 
-      {/* Learning path */}
       {path && !generating && (
         <div className="mt-4 space-y-4">
           {path.raw_json?.overview && (
             <div className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Overview</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{gd.overview}</p>
               <p className="mt-2 text-sm leading-relaxed text-gray-700 dark:text-gray-300">{path.raw_json.overview}</p>
             </div>
           )}
 
           {path.phases.map((phase, phaseIdx) => {
-            const phaseCompleted = phase.topics.filter((t) => (progress[t.id] ?? "not_started") === "completed").length;
+            const phaseCompleted = phase.topics.filter((topic) => (progress[topic.id] ?? "not_started") === "completed").length;
             const phaseTotal = phase.topics.length;
             const phasePct = phaseTotal > 0 ? Math.round((phaseCompleted / phaseTotal) * 100) : 0;
 
             return (
               <div key={phase.id}
                 className={`overflow-hidden rounded-lg border border-l-4 border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${PHASE_BORDER[phaseIdx % PHASE_BORDER.length]}`}>
-                {/* Phase header */}
                 <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
                   <div className="flex items-center justify-between gap-4">
                     <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                      Phase {phase.order_index + 1}: {phase.title}
+                      {gd.phase} {phase.order_index + 1}: {phase.title}
                     </h2>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className="text-xs text-gray-400 dark:text-gray-500">{phaseCompleted}/{phaseTotal}</span>
@@ -966,7 +942,7 @@ export default function GoalDetailPage() {
                         onClick={() => setQuizPhase(phase)}
                         className="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900"
                       >
-                        Quiz
+                        {gd.quiz}
                       </button>
                     </div>
                   </div>
@@ -975,7 +951,6 @@ export default function GoalDetailPage() {
                   </div>
                 </div>
 
-                {/* Topics */}
                 <div className="divide-y divide-gray-50 dark:divide-gray-800">
                   {phase.topics.map((topic) => {
                     const status: TopicStatus = progress[topic.id] ?? "not_started";
@@ -994,7 +969,7 @@ export default function GoalDetailPage() {
                           </button>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center rounded bg-gray-50 px-1.5 py-0.5 text-xs text-gray-400 dark:bg-gray-800 dark:text-gray-500">Week {topic.week_number}</span>
+                              <span className="inline-flex items-center rounded bg-gray-50 px-1.5 py-0.5 text-xs text-gray-400 dark:bg-gray-800 dark:text-gray-500">{gd.week} {topic.week_number}</span>
                               <h3 className={`text-sm font-medium transition-colors ${isCompleted ? "text-gray-400 line-through dark:text-gray-500" : "text-gray-900 dark:text-gray-100"}`}>
                                 {topic.title}
                               </h3>
@@ -1006,13 +981,14 @@ export default function GoalDetailPage() {
                               onClick={() => toggleResources(topic.id)}
                               className="mt-2 text-xs font-medium text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                             >
-                              {isResourcesExpanded ? "Hide resources ↑" : "Resources ↓"}
+                              {isResourcesExpanded ? gd.hideResources : gd.showResources}
                             </button>
                             {isResourcesExpanded && (
                               <ResourcesSection
                                 topicId={topic.id}
                                 resources={resourcesMap[topic.id]}
                                 onLoad={(topicId, data) => setResourcesMap((m) => ({ ...m, [topicId]: data }))}
+                                t={t}
                               />
                             )}
                           </div>

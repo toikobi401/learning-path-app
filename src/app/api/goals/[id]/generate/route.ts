@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { groq, MODELS } from "@/lib/groq";
 import { buildLearningPathPrompt } from "@/lib/prompts/learning-path";
 import { buildQuizPrompt } from "@/lib/prompts/quiz";
+import { getUserAiLanguage, getAiJsonLanguageInstruction } from "@/lib/i18n/ai-language";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,7 +45,8 @@ async function generatePhaseQuiz(
   phaseTitle: string,
   goalTitle: string,
   level: string,
-  topics: ParsedTopic[]
+  topics: ParsedTopic[],
+  aiLang = "vi"
 ): Promise<void> {
   const prompt = buildQuizPrompt({
     phaseTitle,
@@ -59,7 +61,7 @@ async function generatePhaseQuiz(
   try {
     const completion = await groq.chat.completions.create({
       model: MODELS.generation,
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content: prompt + getAiJsonLanguageInstruction(aiLang) }],
       response_format: { type: "json_object" },
       temperature: 0.6,
     });
@@ -113,8 +115,11 @@ export async function POST(_req: NextRequest, { params }: Params) {
   }
 
   const { id } = await params;
-
-  const goal = await prisma.goal.findUnique({ where: { id } });
+  const [goal, aiLang] = await Promise.all([
+    prisma.goal.findUnique({ where: { id } }),
+    getUserAiLanguage(session.user.id),
+  ]);
+  const langInstruction = getAiJsonLanguageInstruction(aiLang);
   if (!goal || goal.user_id !== session.user.id) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
@@ -131,7 +136,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     hoursPerDay: goal.hours_per_day,
     deadlineDate: goal.deadline.toISOString().split("T")[0],
     weeksAvailable,
-  });
+  }) + langInstruction;
 
   let parsed: ParsedPath;
   try {
@@ -207,7 +212,8 @@ export async function POST(_req: NextRequest, { params }: Params) {
         phase.title,
         goal.title,
         goal.level,
-        parsed.phases[i]?.topics ?? []
+        parsed.phases[i]?.topics ?? [],
+        aiLang
       )
     )
   );

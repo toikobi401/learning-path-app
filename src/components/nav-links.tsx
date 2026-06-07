@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const LINKS = [
-  { href: "/dashboard", label: "Overview", exact: true },
-  { href: "/dashboard/goals", label: "Goals", exact: false },
-  { href: "/dashboard/review", label: "Review", exact: false },
-  { href: "/dashboard/chat", label: "Chat", exact: false },
-];
+import { useLanguage } from "@/lib/i18n/context";
 
 export function NavLinks() {
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const LINKS = [
+    { href: "/dashboard", label: t.nav.overview, exact: true },
+    { href: "/dashboard/goals", label: t.nav.goals, exact: false },
+    { href: "/dashboard/review", label: t.nav.review, exact: false },
+    { href: "/dashboard/chat", label: t.nav.chat, exact: false },
+    { href: "/dashboard/settings", label: t.nav.settings, exact: false },
+  ];
 
   return (
     <nav className="hidden items-center gap-1 sm:flex">

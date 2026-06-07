@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { groq, MODELS } from "@/lib/groq";
+import { getUserAiLanguage, getAiLanguageInstruction } from "@/lib/i18n/ai-language";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -42,6 +43,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Goal not found." }, { status: 404 });
   }
 
+  const aiLang = await getUserAiLanguage(userId);
+
   // Build progress context
   const allTopicIds =
     goal.learning_path?.phases.flatMap((p) => p.topics.map((t) => t.id)) ?? [];
@@ -80,7 +83,8 @@ Your role:
 - Help understand concepts related to the goal
 - Provide encouragement and accountability
 - Keep responses concise (under 250 words) unless a detailed explanation is explicitly requested
-- Be specific to this learner's goal and current progress level`;
+- Be specific to this learner's goal and current progress level
+${getAiLanguageInstruction(aiLang)}`;
 
   // Get recent message history (last 20 for context)
   const history = await prisma.chatMessage.findMany({
