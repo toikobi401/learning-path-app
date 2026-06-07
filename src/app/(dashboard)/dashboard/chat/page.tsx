@@ -1,7 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
+import { Suspense } from "react";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/context";
@@ -47,7 +46,7 @@ function groupConversations(
   return groups.filter((g) => g.items.length > 0);
 }
 
-export default function ChatPage() {
+function ChatPageInner() {
   const { t } = useLanguage();
   const ct = t.conversations;
   const searchParams = useSearchParams();
@@ -614,5 +613,13 @@ function ConversationItem({
         </div>
       )}
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense>
+      <ChatPageInner />
+    </Suspense>
   );
 }
