@@ -1,6 +1,6 @@
 # PathAI — Tiến trình implement
 
-> Cập nhật lần cuối: 2026-06-07 (Modules 5–8 + Quiz System hoàn thành)
+> Cập nhật lần cuối: 2026-06-07 (Module 10 — i18n hoàn thành)
 
 ---
 
@@ -17,6 +17,7 @@
 | 7 | Resource Library | Hoàn thành | 100% |
 | 8 | Dashboard & Analytics | Hoàn thành | 100% |
 | 9 | Quiz System (MCQ + Essay + AI Grading) | Hoàn thành | 100% |
+| 10 | Internationalization (i18n) — VI/EN | Hoàn thành | 100% |
 
 ---
 
@@ -282,6 +283,59 @@ src/app/(dashboard)/dashboard/goals/[id]/page.tsx    (updated — QuizModal)
 | Questions lưu DB | ✓ vĩnh viễn | ✗ state only |
 | Score lưu DB | ✓ PhaseQuizAttempt | ✓ PracticeAttempt |
 | Configurable | ✗ (7 câu, medium) | ✓ count/difficulty/types |
+
+---
+
+## Module 10 — Internationalization (i18n) `HOÀN THÀNH`
+
+### Đã implement
+- [x] Schema: `UserSettings` model (user_id unique, ui_language, ai_language, default "vi")
+- [x] `GET /api/settings` — trả settings hiện tại, fallback mặc định "vi"
+- [x] `PATCH /api/settings` — upsert settings, validate lang ∈ ["vi", "en"]
+- [x] `translations.ts` — dictionary đầy đủ vi/en cho tất cả màn hình (nav, dashboard, goals, new goal, goal detail, review, chat, quiz, settings, common)
+- [x] `LanguageProvider` — React context + `useLanguage()` hook, `initialLang` từ server
+- [x] `getServerTranslations(userId)` — server-side helper cho Server Components, try-catch graceful fallback "vi"
+- [x] `getAiLanguageInstruction(lang)` — cho prose output (chat)
+- [x] `getAiJsonLanguageInstruction(lang)` — cho JSON output, giữ nguyên key, chỉ dịch value → fix 502 khi regenerate path với AI language = VI
+- [x] `/dashboard/settings` — trang cài đặt: chọn UI language + AI language, save → update context ngay
+- [x] Hover dropdown avatar — Profile / Settings / Sign out (dùng `t.common.*`)
+- [x] Tất cả màn hình áp dụng i18n: dashboard, goals list, new goal, goal detail (+ QuizModal + ResourcesSection), review, chat
+- [x] `layout.tsx` — wrap `LanguageProvider` với `initialLang` fetch từ DB server-side
+- [x] Fix: AI JSON generation routes (`generate`, `practice`, `practice/grade`, `quiz/attempt`, `review/generate`) dùng `getAiJsonLanguageInstruction`
+
+### Files chính
+```
+src/lib/i18n/translations.ts          (new — dictionary vi/en)
+src/lib/i18n/context.tsx              (new — LanguageProvider + useLanguage)
+src/lib/i18n/server.ts                (new — getServerTranslations)
+src/lib/i18n/ai-language.ts           (new — language instruction helpers)
+src/app/api/settings/route.ts         (new — GET/PATCH settings)
+src/app/(dashboard)/dashboard/settings/page.tsx  (new — settings page)
+src/app/(dashboard)/layout.tsx        (updated — LanguageProvider wrap)
+src/components/user-avatar-header.tsx (updated — hover dropdown + i18n)
+src/components/nav-links.tsx          (updated — i18n)
+src/app/(dashboard)/dashboard/page.tsx           (updated — i18n server)
+src/app/(dashboard)/dashboard/goals/page.tsx     (updated — i18n client)
+src/app/(dashboard)/dashboard/goals/new/page.tsx (updated — i18n client)
+src/app/(dashboard)/dashboard/goals/[id]/page.tsx(updated — i18n + QuizModal + ResourcesSection)
+src/app/(dashboard)/dashboard/review/page.tsx    (updated — i18n client)
+src/app/(dashboard)/dashboard/chat/page.tsx      (updated — i18n client)
+prisma/schema.prisma                  (updated — UserSettings model)
+```
+
+### Kiến trúc i18n
+```
+Server Component → getServerTranslations(userId) → DB → initialLang
+                                                         ↓
+Client → LanguageProvider(initialLang) → useLanguage() → t.section.key
+                                                         ↓
+AI route → getAiJsonLanguageInstruction(lang) → Groq prompt suffix
+```
+
+### Fix bug quan trọng
+Khi AI language = VI, instruction "trả lời hoàn toàn bằng tiếng Việt" khiến model dịch cả JSON key
+(`phases` → `các_giai_đoạn`) → 502 "invalid structure".
+Fix: tách thành `getAiJsonLanguageInstruction()` — chỉ dịch string value, giữ nguyên JSON key.
 
 ---
 
