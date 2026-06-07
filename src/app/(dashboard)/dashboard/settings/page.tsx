@@ -1,17 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/context";
 import type { Language } from "@/lib/i18n/translations";
 
 type Settings = {
   ui_language: Language;
   ai_language: Language;
+  show_chat_widget: boolean;
 };
 
 export default function SettingsPage() {
   const { t, lang, setLang } = useLanguage();
-  const [settings, setSettings] = useState<Settings>({ ui_language: lang, ai_language: "vi" });
+  const router = useRouter();
+  const [settings, setSettings] = useState<Settings>({
+    ui_language: lang,
+    ai_language: "vi",
+    show_chat_widget: true,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -35,11 +42,13 @@ export default function SettingsPage() {
         body: JSON.stringify(settings),
       });
       if (res.ok) {
-        const updated = await res.json() as Settings;
+        const updated = (await res.json()) as Settings;
         setSettings(updated);
         setLang(updated.ui_language);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
+        // Refresh layout so widget appears/disappears immediately
+        router.refresh();
       }
     } finally {
       setSaving(false);
@@ -130,6 +139,40 @@ export default function SettingsPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Chat section */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            {t.settings.chatSection}
+          </h2>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {t.settings.chatWidget}
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                {t.settings.chatWidgetDesc}
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={settings.show_chat_widget}
+              onClick={() => setSettings((s) => ({ ...s, show_chat_widget: !s.show_chat_widget }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                settings.show_chat_widget
+                  ? "bg-indigo-600 dark:bg-indigo-500"
+                  : "bg-gray-200 dark:bg-gray-700"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  settings.show_chat_widget ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
           </div>
         </div>
 

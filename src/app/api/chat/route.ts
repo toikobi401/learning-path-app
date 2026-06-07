@@ -11,62 +11,90 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { goalId, message } = (await req.json()) as {
-    goalId: string;
+  const body = (await req.json()) as {
     message: string;
+    conversationId?: string;
+    goalId?: string; // kept for backward compat; ignored if conversationId given
   };
 
-  if (!goalId || !message?.trim()) {
-    return NextResponse.json({ error: "goalId and message are required." }, { status: 400 });
+  const { message, conversationId } = body;
+
+  if (!message?.trim()) {
+    return NextResponse.json({ error: "message is required." }, { status: 400 });
   }
 
   const userId = session.user.id;
+  const aiLang = await getUserAiLanguage(userId);
 
-  // Verify ownership and load goal context
-  const goal = await prisma.goal.findUnique({
-    where: { id: goalId, user_id: userId },
-    include: {
-      learning_path: {
-        include: {
-          phases: {
-            include: {
-              topics: { select: { id: true, title: true } },
+  // Resolve or create conversation
+  let conversation: { id: string; goal_id: string | null; title: string };
+
+  if (conversationId) {
+    const found = await prisma.conversation.findFirst({
+      where: { id: conversationId, user_id: userId },
+      select: { id: true, goal_id: true, title: true },
+    });
+    if (!found) {
+      return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+    }
+    conversation = found;
+  } else {
+    // Auto-create conversation — title from first 50 chars of message
+    const autoTitle = message.trim().slice(0, 50) + (message.trim().length > 50 ? "…" : "");
+    const goalId = body.goalId ?? null;
+
+    if (goalId) {
+      const goal = await prisma.goal.findFirst({
+        where: { id: goalId, user_id: userId },
+        select: { id: true },
+      });
+      if (!goal) {
+        return NextResponse.json({ error: "Goal not found." }, { status: 404 });
+      }
+    }
+
+    const created = await prisma.conversation.create({
+      data: { user_id: userId, goal_id: goalId, title: autoTitle },
+      select: { id: true, goal_id: true, title: true },
+    });
+    conversation = created;
+  }
+
+  const goalId = conversation.goal_id;
+
+  // Build system prompt — with goal context if conversation has a goal
+  let systemPrompt = `You are PathAI, an expert learning assistant.`;
+
+  if (goalId) {
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId },
+      include: {
+        learning_path: {
+          include: {
+            phases: {
+              include: { topics: { select: { id: true, title: true } } },
+              orderBy: { order_index: "asc" },
             },
-            orderBy: { order_index: "asc" },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!goal) {
-    return NextResponse.json({ error: "Goal not found." }, { status: 404 });
-  }
+    if (goal) {
+      const allTopicIds = goal.learning_path?.phases.flatMap((p) => p.topics.map((t) => t.id)) ?? [];
+      const completedCount =
+        allTopicIds.length > 0
+          ? await prisma.progressLog.count({
+              where: { user_id: userId, topic_id: { in: allTopicIds }, status: "completed" },
+            })
+          : 0;
+      const totalCount = allTopicIds.length;
+      const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+      const phaseList =
+        goal.learning_path?.phases.map((p) => `  - ${p.title} (${p.topics.length} topics)`).join("\n") ??
+        "No learning path generated yet.";
 
-  const aiLang = await getUserAiLanguage(userId);
-
-  // Build progress context
-  const allTopicIds =
-    goal.learning_path?.phases.flatMap((p) => p.topics.map((t) => t.id)) ?? [];
-
-  const completedCount =
-    allTopicIds.length > 0
-      ? await prisma.progressLog.count({
-          where: { user_id: userId, topic_id: { in: allTopicIds }, status: "completed" },
-        })
-      : 0;
-
-  const totalCount = allTopicIds.length;
-  const progressPct =
-    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-  const phaseList =
-    goal.learning_path?.phases
-      .map((p) => `  - ${p.title} (${p.topics.length} topics)`)
-      .join("\n") ?? "No learning path generated yet.";
-
-  // System prompt
-  const systemPrompt = `You are PathAI, an expert learning assistant helping the user achieve their learning goal.
+      systemPrompt = `You are PathAI, an expert learning assistant helping the user achieve their learning goal.
 
 **Goal:** ${goal.title}
 **Description:** ${goal.description}
@@ -83,12 +111,17 @@ Your role:
 - Help understand concepts related to the goal
 - Provide encouragement and accountability
 - Keep responses concise (under 250 words) unless a detailed explanation is explicitly requested
-- Be specific to this learner's goal and current progress level
-${getAiLanguageInstruction(aiLang)}`;
+- Be specific to this learner's goal and current progress level`;
+    }
+  } else {
+    systemPrompt = `You are PathAI, an expert learning assistant. Help the user with any learning-related questions. Keep responses concise and helpful.`;
+  }
 
-  // Get recent message history (last 20 for context)
+  systemPrompt += `\n${getAiLanguageInstruction(aiLang)}`;
+
+  // Get recent message history for this conversation (last 20)
   const history = await prisma.chatMessage.findMany({
-    where: { user_id: userId, goal_id: goalId },
+    where: { conversation_id: conversation.id },
     orderBy: { created_at: "desc" },
     take: 20,
     select: { role: true, content: true },
@@ -97,7 +130,19 @@ ${getAiLanguageInstruction(aiLang)}`;
 
   // Save user message
   await prisma.chatMessage.create({
-    data: { user_id: userId, goal_id: goalId, role: "user", content: message.trim() },
+    data: {
+      user_id: userId,
+      goal_id: goalId,
+      conversation_id: conversation.id,
+      role: "user",
+      content: message.trim(),
+    },
+  });
+
+  // Update conversation updated_at
+  await prisma.conversation.update({
+    where: { id: conversation.id },
+    data: { updated_at: new Date() },
   });
 
   // Build Groq messages
@@ -121,9 +166,13 @@ ${getAiLanguageInstruction(aiLang)}`;
 
   const encoder = new TextEncoder();
   let fullResponse = "";
+  const convId = conversation.id;
 
   const readable = new ReadableStream({
     async start(controller) {
+      // Send conversation_id as first chunk so client can update state
+      controller.enqueue(encoder.encode(`[CONV_ID:${convId}]\n`));
+
       try {
         for await (const chunk of stream) {
           const text = chunk.choices[0]?.delta?.content ?? "";
@@ -138,9 +187,15 @@ ${getAiLanguageInstruction(aiLang)}`;
             data: {
               user_id: userId,
               goal_id: goalId,
+              conversation_id: convId,
               role: "assistant",
               content: fullResponse,
             },
+          });
+          // Update conversation updated_at again after assistant message
+          await prisma.conversation.update({
+            where: { id: convId },
+            data: { updated_at: new Date() },
           });
         }
       } finally {
@@ -150,6 +205,9 @@ ${getAiLanguageInstruction(aiLang)}`;
   });
 
   return new Response(readable, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Conversation-Id": convId,
+    },
   });
 }

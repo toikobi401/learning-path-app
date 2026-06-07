@@ -8,6 +8,7 @@ import { NavLinks } from "@/components/nav-links";
 import { prisma } from "@/lib/prisma";
 import { LanguageProvider } from "@/lib/i18n/context";
 import type { Language } from "@/lib/i18n/translations";
+import ChatWidget from "@/components/chat-widget";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -20,13 +21,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
     }),
     prisma.userSettings.findUnique({
       where: { user_id: session.user.id },
-      select: { ui_language: true },
+      select: { ui_language: true, show_chat_widget: true },
     }),
   ]);
 
   const displayName = user?.name ?? session.user?.name ?? session.user?.email ?? "";
   const initialEmail = session.user?.email ?? "";
   const initialLang = (settings?.ui_language ?? "vi") as Language;
+  const showChatWidget = settings?.show_chat_widget ?? true;
 
   return (
     <LanguageProvider initialLang={initialLang}>
@@ -59,6 +61,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
             {children}
           </div>
         </main>
+
+        {showChatWidget && <ChatWidget />}
       </div>
     </LanguageProvider>
   );
