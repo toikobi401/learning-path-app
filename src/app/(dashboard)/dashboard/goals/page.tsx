@@ -115,7 +115,7 @@ export default function GoalsPage() {
     );
   }
 
-  const inputCls = "mt-1 block w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-gray-600 dark:focus:ring-gray-800";
+  const inputCls = "field mt-1";
 
   return (
     <>
@@ -125,17 +125,21 @@ export default function GoalsPage() {
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{gt.title}</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{gt.subtitle}</p>
         </div>
-        <Link href="/dashboard/goals/new" className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300">
+        <Link href="/dashboard/goals/new" className="btn-primary">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           {gt.newGoal}
         </Link>
       </div>
 
       {/* Empty state */}
       {goals.length === 0 && (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white px-8 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{gt.noGoals}</h2>
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-8 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
+          <div className="mx-auto flex h-14 w-14 animate-float items-center justify-center rounded-2xl bg-linear-to-br from-accent to-accent-3 text-white shadow-xl shadow-accent/30">
+            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          </div>
+          <h2 className="mt-5 text-base font-semibold text-gray-900 dark:text-gray-100">{gt.noGoals}</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500 dark:text-gray-400">{gt.noGoalsDesc}</p>
-          <Link href="/dashboard/goals/new" className="mt-6 inline-block rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300">
+          <Link href="/dashboard/goals/new" className="btn-primary mt-6">
             {gt.createFirstGoal}
           </Link>
         </div>
@@ -145,7 +149,7 @@ export default function GoalsPage() {
       {goals.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           {goals.map((goal) => (
-            <article key={goal.id} className="flex flex-col rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <article key={goal.id} className="group flex flex-col rounded-xl border border-gray-200 bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/10 dark:border-gray-800 dark:bg-gray-900">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex flex-wrap gap-1.5">
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${LEVEL_COLOR[goal.level]}`}>
@@ -230,10 +234,10 @@ export default function GoalsPage() {
               </div>
               {editError && <p className="text-xs text-red-600 dark:text-red-400">{editError}</p>}
               <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={closeEdit} className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
+                <button type="button" onClick={closeEdit} className="btn-outline">
                   {gt.editModal.cancel}
                 </button>
-                <button type="submit" disabled={editLoading} className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300">
+                <button type="submit" disabled={editLoading} className="btn-primary">
                   {editLoading ? gt.editModal.saving : gt.editModal.save}
                 </button>
               </div>
@@ -250,7 +254,7 @@ export default function GoalsPage() {
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{gt.deleteModal.title}</h2>
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{gt.deleteModal.description}</p>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setDeletingId(null)} className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
+              <button onClick={() => setDeletingId(null)} className="btn-outline">
                 {gt.deleteModal.cancel}
               </button>
               <button onClick={handleDelete} disabled={deleteLoading} className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">

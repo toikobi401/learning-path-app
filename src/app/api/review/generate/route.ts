@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { groq, MODELS } from "@/lib/groq";
+import { aiComplete } from "@/lib/ai";
 import { buildWeeklyReviewPrompt } from "@/lib/prompts/weekly-review";
 import { getUserAiLanguage, getAiJsonLanguageInstruction } from "@/lib/i18n/ai-language";
 
@@ -102,21 +102,19 @@ export async function POST(req: NextRequest) {
     phaseSummaries,
   });
 
-  const completion = await groq.chat.completions.create({
-    model: MODELS.generation,
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert learning coach. Return only valid JSON.",
-      },
-      { role: "user", content: prompt + getAiJsonLanguageInstruction(aiLang) },
-    ],
-    response_format: { type: "json_object" },
-    temperature: 0.7,
-    max_tokens: 1024,
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const raw =
+    (await aiComplete(userId, "generation", {
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert learning coach. Return only valid JSON.",
+        },
+        { role: "user", content: prompt + getAiJsonLanguageInstruction(aiLang) },
+      ],
+      json: true,
+      temperature: 0.7,
+      maxTokens: 1024,
+    })) || "{}";
   let parsed: {
     summary?: string;
     strengths?: string[];

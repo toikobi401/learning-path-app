@@ -27,7 +27,7 @@ function ReviewCard({ review, t }: { review: Review; t: ReturnType<typeof useLan
   const r = t.review;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+    <div className="rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5 dark:border-gray-800 dark:bg-gray-900">
       <button onClick={() => setExpanded((e) => !e)} className="flex w-full items-center justify-between px-5 py-4 text-left">
         <div>
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{r.week} {review.week_number}</p>
@@ -151,7 +151,7 @@ export default function ReviewPage() {
   return (
     <div className="max-w-2xl">
       <div className="mb-8 border-b border-gray-200 pb-6 dark:border-gray-800">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{r.title}</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100"><span className="text-gradient">{r.title}</span></h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{r.subtitle}</p>
       </div>
 
@@ -163,7 +163,7 @@ export default function ReviewPage() {
         <div className="rounded-lg border border-dashed border-gray-200 bg-white px-8 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{r.noGoals}</p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{r.noGoalsDesc}</p>
-          <Link href="/dashboard/goals/new" className="mt-4 inline-block rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300">
+          <Link href="/dashboard/goals/new" className="btn-primary mt-4">
             {r.createGoal}
           </Link>
         </div>
@@ -172,12 +172,12 @@ export default function ReviewPage() {
           <div className="mb-6 flex items-center gap-4">
             <div className="flex-1">
               <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">{r.selectGoal}</label>
-              <select value={selectedGoalId} onChange={(e) => setSelectedGoalId(e.target.value)} className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-gray-100">
+              <select value={selectedGoalId} onChange={(e) => setSelectedGoalId(e.target.value)} className="field">
                 {goals.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
               </select>
             </div>
             <div className="mt-6">
-              <button onClick={handleGenerate} disabled={generating || !selectedGoalId} className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300">
+              <button onClick={handleGenerate} disabled={generating || !selectedGoalId} className="btn-primary">
                 {generating ? r.generating : r.generateWeek}
               </button>
             </div>

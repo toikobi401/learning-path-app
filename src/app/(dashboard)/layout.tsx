@@ -5,10 +5,13 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserAvatarHeader } from "@/components/user-avatar-header";
 import { NavLinks } from "@/components/nav-links";
+import { Logo } from "@/components/logo";
 import { prisma } from "@/lib/prisma";
 import { LanguageProvider } from "@/lib/i18n/context";
 import type { Language } from "@/lib/i18n/translations";
 import ChatWidget from "@/components/chat-widget";
+import PomodoroWidget from "@/components/pomodoro-widget";
+import { SiteBackground } from "@/components/motion/site-background";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -32,15 +35,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <LanguageProvider initialLang={initialLang}>
-      <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-950">
-        <header className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <div className="relative isolate flex min-h-screen flex-col bg-gray-50 dark:bg-gray-950">
+        <SiteBackground variant="subtle" />
+        <header className="glass sticky top-0 z-40 border-b border-[color-mix(in_srgb,var(--border)_70%,transparent)]">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-8 py-4">
             <div className="flex items-center gap-8">
               <Link
                 href="/dashboard"
-                className="text-sm font-semibold tracking-tight text-gray-900 dark:text-gray-100"
+                className="flex items-center transition-transform duration-300 hover:scale-105"
               >
-                PathAI
+                <Logo variant="full" priority className="h-7" />
               </Link>
               <NavLinks />
             </div>
@@ -63,6 +67,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </main>
 
         {showChatWidget && <ChatWidget />}
+        <PomodoroWidget />
       </div>
     </LanguageProvider>
   );

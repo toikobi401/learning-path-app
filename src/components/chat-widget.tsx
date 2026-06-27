@@ -156,7 +156,7 @@ export default function ChatWidget() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-linear-to-r from-accent to-accent-2 hover:brightness-110 text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95"
           aria-label={wt.title}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,12 +176,12 @@ export default function ChatWidget() {
           style={{ maxHeight: "500px" }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-blue-600 text-white">
+          <div className="flex items-center justify-between px-4 py-3 bg-linear-to-r from-accent to-accent-2 text-white">
             <span className="font-medium text-sm">{wt.title}</span>
             <div className="flex items-center gap-1">
               <button
                 onClick={handleNewConversation}
-                className="p-1.5 rounded-lg hover:bg-blue-500 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
                 title={wt.newConversation}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,7 +190,7 @@ export default function ChatWidget() {
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-blue-500 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -203,7 +203,7 @@ export default function ChatWidget() {
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ minHeight: "200px", maxHeight: "340px" }}>
             {loadingInit ? (
               <div className="flex items-center justify-center h-full">
-                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-4">
@@ -217,7 +217,7 @@ export default function ChatWidget() {
                     <div
                       className={`max-w-[85%] rounded-xl px-3 py-2 text-xs whitespace-pre-wrap ${
                         m.role === "user"
-                          ? "bg-blue-600 text-white rounded-br-sm"
+                          ? "bg-linear-to-r from-accent to-accent-2 text-white rounded-br-sm"
                           : "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-bl-sm"
                       }`}
                     >
@@ -241,12 +241,12 @@ export default function ChatWidget() {
               onKeyDown={handleKeyDown}
               placeholder={wt.placeholder}
               disabled={streaming}
-              className="flex-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-3 py-2 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-50"
+              className="flex-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-3 py-2 text-xs outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || streaming}
-              className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white flex items-center justify-center transition-colors shrink-0"
+              className="w-8 h-8 rounded-lg bg-linear-to-r from-accent to-accent-2 hover:brightness-110 disabled:opacity-40 text-white flex items-center justify-center transition-colors shrink-0"
             >
               {streaming ? (
                 <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />

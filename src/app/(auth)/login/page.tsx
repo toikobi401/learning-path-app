@@ -38,7 +38,7 @@ function LoginForm() {
   return (
     <div>
       <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-        Welcome back
+        Welcome <span className="text-gradient">back</span>
       </h1>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
         Sign in to continue to your learning path.
@@ -72,7 +72,7 @@ function LoginForm() {
             required
             autoComplete="email"
             placeholder="you@example.com"
-            className="mt-1.5 block w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-600 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+            className="mt-1.5 block w-full rounded-lg border border-gray-200 bg-white/70 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-all duration-200 focus:border-accent focus:ring-4 focus:ring-accent/15 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100 dark:placeholder-gray-600 dark:focus:border-accent"
           />
         </div>
 
@@ -92,16 +92,17 @@ function LoginForm() {
             required
             autoComplete="current-password"
             placeholder="••••••••"
-            className="mt-1.5 block w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-600 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+            className="mt-1.5 block w-full rounded-lg border border-gray-200 bg-white/70 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-all duration-200 focus:border-accent focus:ring-4 focus:ring-accent/15 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100 dark:placeholder-gray-600 dark:focus:border-accent"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
+          className="group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-accent to-accent-2 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-accent/25 transition-all duration-300 hover:shadow-accent/40 hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
         >
-          {loading ? "Signing in..." : "Sign in"}
+          <span className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+          <span className="relative">{loading ? "Signing in..." : "Sign in"}</span>
         </button>
       </form>
 
@@ -113,8 +114,14 @@ function LoginForm() {
 
       <button
         onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-        className="w-full rounded-md border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
       >
+        <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z" />
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
+          <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z" />
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z" />
+        </svg>
         Continue with Google
       </button>
 

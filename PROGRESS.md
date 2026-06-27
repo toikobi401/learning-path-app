@@ -1,6 +1,6 @@
 # PathAI — Tiến trình implement
 
-> Cập nhật lần cuối: 2026-06-07 (Module 10 — i18n hoàn thành)
+> Cập nhật lần cuối: 2026-06-26 (Đồng bộ tài liệu với codebase thực tế)
 
 ---
 
@@ -13,11 +13,32 @@
 | 3 | AI Learning Path Generation | Hoàn thành | 100% |
 | 4 | Progress Tracking | Hoàn thành | 100% |
 | 5 | AI Weekly Review | Hoàn thành | 100% |
-| 6 | Chat Assistant | Hoàn thành | 100% |
+| 6 | Chat Assistant (multi-conversation) | Hoàn thành | 100% |
 | 7 | Resource Library | Hoàn thành | 100% |
 | 8 | Dashboard & Analytics | Hoàn thành | 100% |
 | 9 | Quiz System (MCQ + Essay + AI Grading) | Hoàn thành | 100% |
 | 10 | Internationalization (i18n) — VI/EN | Hoàn thành | 100% |
+| 11 | User Profile & Avatar Upload | Hoàn thành | 100% |
+| 12 | Floating Chat Widget | Hoàn thành | 100% |
+| 13 | UI/UX Polish — Motion layer | Hoàn thành | 100% |
+| 14 | Multi-Provider AI (Groq/Anthropic/Google/OpenAI/Custom) | Hoàn thành | 100% |
+| | **Roadmap — Tăng tương tác & giá trị học tập** | | |
+| 15 | Bài giảng AI theo topic ("Học ngay") ⭐ | Hoàn thành | 100% |
+| 16 | Ghi chú theo topic | Hoàn thành | 100% |
+| 17 | Daily Check-in + nhật ký học | Hoàn thành | 100% |
+| 18 | Hỏi AI ngay tại topic | Hoàn thành | 100% |
+| 19 | "Hôm nay học gì" — kế hoạch theo ngày | Chưa bắt đầu | 0% |
+| 20 | Ôn tập lặp lại ngắt quãng (spaced repetition) | Chưa bắt đầu | 0% |
+| 21 | Weekly Review "có hành động" | Chưa bắt đầu | 0% |
+| 22 | Email nhắc học / giữ streak | Chưa bắt đầu | 0% |
+| 23 | Bài tập / dự án thực hành theo phase | Chưa bắt đầu | 0% |
+| 24 | Gamification (XP / huy hiệu / chứng chỉ) | Chưa bắt đầu | 0% |
+| 25 | Sơ đồ phụ thuộc topic (prerequisite map) | Chưa bắt đầu | 0% |
+| 26 | Deploy — Vercel + Railway MySQL | Đang thực hiện | 0% |
+
+> **Lưu ý đồng bộ (2026-06-27):** Module 14 (Multi-Provider AI) đã hoàn thành.
+> Thêm Roadmap M15–M25 (3 nhóm tăng tương tác học tập, xem chi tiết cuối file).
+> Deploy dời thành Module 26.
 
 ---
 
@@ -168,14 +189,23 @@ src/app/(dashboard)/dashboard/review/page.tsx
 
 ---
 
-## Module 6 — Chat Assistant `HOÀN THÀNH`
+## Module 6 — Chat Assistant (multi-conversation) `HOÀN THÀNH`
+
+> **Cập nhật kiến trúc:** Chat đã chuyển từ mô hình "1 hội thoại / goal" sang
+> **multi-conversation** — model `Conversation` riêng, mỗi user có nhiều hội thoại,
+> có hoặc không gắn với goal. Sidebar nhóm hội thoại theo Hôm nay / Hôm qua /
+> 7 ngày qua / Cũ hơn (`groupConversations`).
 
 ### Đã implement
+- [x] Schema: model `Conversation` (user_id, goal_id nullable, title), `ChatMessage.conversation_id`
+- [x] `GET /api/conversations` — list hội thoại của user (kèm goal title + last message), filter `?widget=true` (chỉ hội thoại không gắn goal)
+- [x] `POST /api/conversations` — tạo hội thoại mới (validate goal ownership nếu có goal_id)
+- [x] `PATCH /api/conversations/[id]` — đổi tên hội thoại (rename)
+- [x] `DELETE /api/conversations/[id]` — xóa hội thoại (cascade messages)
+- [x] `GET /api/conversations/[id]/messages` — load messages của 1 hội thoại
 - [x] `POST /api/chat` — streaming với Groq `llama-3.1-8b-instant`, context injection (goal info + phases + progress %)
 - [x] Lưu user message trước khi stream, lưu assistant message sau khi stream kết thúc
-- [x] `GET /api/goals/[id]/messages` — load history (100 messages gần nhất)
-- [x] `DELETE /api/goals/[id]/messages` — xóa toàn bộ conversation của goal
-- [x] `/dashboard/chat` — streaming UI real-time, goal selector, prompt suggestions, đọc `?goalId=` từ URL
+- [x] `/dashboard/chat` — sidebar danh sách hội thoại (nhóm theo thời gian), streaming UI real-time, goal selector, prompt suggestions, đọc `?goalId=` từ URL
 - [x] Typing indicator (3 bouncing dots) khi AI đang trả lời
 - [x] `Shift+Enter` cho newline, `Enter` để gửi
 - [x] TypeScript: 0 errors
@@ -183,9 +213,14 @@ src/app/(dashboard)/dashboard/review/page.tsx
 ### Files chính
 ```
 src/app/api/chat/route.ts
-src/app/api/goals/[id]/messages/route.ts
+src/app/api/conversations/route.ts                  (list + create)
+src/app/api/conversations/[id]/route.ts             (rename + delete)
+src/app/api/conversations/[id]/messages/route.ts    (load messages)
 src/app/(dashboard)/dashboard/chat/page.tsx
 ```
+
+> Route cũ `src/app/api/goals/[id]/messages/route.ts` vẫn còn (history theo goal),
+> nhưng UI chat chính giờ dùng `Conversation`.
 
 ### Model AI
 - Chat: `llama-3.1-8b-instant` (Groq, streaming, nhanh)
@@ -289,7 +324,7 @@ src/app/(dashboard)/dashboard/goals/[id]/page.tsx    (updated — QuizModal)
 ## Module 10 — Internationalization (i18n) `HOÀN THÀNH`
 
 ### Đã implement
-- [x] Schema: `UserSettings` model (user_id unique, ui_language, ai_language, default "vi")
+- [x] Schema: `UserSettings` model (user_id unique, ui_language, ai_language default "vi", `show_chat_widget` default true)
 - [x] `GET /api/settings` — trả settings hiện tại, fallback mặc định "vi"
 - [x] `PATCH /api/settings` — upsert settings, validate lang ∈ ["vi", "en"]
 - [x] `translations.ts` — dictionary đầy đủ vi/en cho tất cả màn hình (nav, dashboard, goals, new goal, goal detail, review, chat, quiz, settings, common)
@@ -339,6 +374,191 @@ Fix: tách thành `getAiJsonLanguageInstruction()` — chỉ dịch string value
 
 ---
 
+## Module 11 — User Profile & Avatar Upload `HOÀN THÀNH`
+
+### Đã implement
+- [x] Schema: `User.avatar_url`, `User.provider` (email/google)
+- [x] `GET /api/user` — trả profile hiện tại (name, email, avatar_url, provider, created_at)
+- [x] `PATCH /api/user` — cập nhật name và/hoặc avatar
+- [x] `POST /api/upload` — upload ảnh lên Cloudinary (validate type JPEG/PNG/WebP/GIF, max 5 MB)
+- [x] `src/lib/cloudinary.ts` — wrapper upload/delete Cloudinary
+- [x] `/dashboard/profile` — trang chỉnh sửa profile + đổi avatar
+- [x] Avatar hiển thị ở header dropdown (`user-avatar-header.tsx`)
+- [x] Zustand user store (`src/lib/stores/user-store.ts`) — đồng bộ state user client-side
+
+### Files chính
+```
+src/lib/cloudinary.ts
+src/lib/stores/user-store.ts
+src/app/api/user/route.ts
+src/app/api/upload/route.ts
+src/app/(dashboard)/dashboard/profile/page.tsx
+src/components/user-avatar-header.tsx
+```
+
+---
+
+## Module 12 — Floating Chat Widget `HOÀN THÀNH`
+
+### Đã implement
+- [x] `src/components/chat-widget.tsx` — nút chat nổi góc màn hình, mở panel chat nhanh
+- [x] Dùng widget conversation riêng (goal_id = null), load hội thoại gần nhất khi mở lần đầu
+- [x] Streaming real-time, reuse `POST /api/chat` + `/api/conversations`
+- [x] Bật/tắt qua setting `UserSettings.show_chat_widget` (mặc định bật)
+- [x] `GET/PATCH /api/settings` đã hỗ trợ field `show_chat_widget`
+
+### Files chính
+```
+src/components/chat-widget.tsx
+src/app/api/settings/route.ts        (field show_chat_widget)
+prisma/schema.prisma                 (UserSettings.show_chat_widget)
+```
+
+---
+
+## Module 13 — UI/UX Polish — Motion Layer `HOÀN THÀNH`
+
+### Đã implement
+- [x] Bộ component hiệu ứng/animation (`src/components/motion/`)
+- [x] `aurora.tsx`, `particles.tsx`, `cursor-field.tsx`, `site-background.tsx` — background động
+- [x] `reveal.tsx` — scroll reveal, `scroll-progress.tsx` — thanh tiến độ cuộn
+- [x] `tilt-card.tsx`, `magnetic-button.tsx` — micro-interaction
+- [x] `count-up.tsx` — số đếm tăng dần (stat cards)
+- [x] `@vercel/analytics` — web analytics
+
+### Files chính
+```
+src/components/motion/aurora.tsx
+src/components/motion/particles.tsx
+src/components/motion/cursor-field.tsx
+src/components/motion/site-background.tsx
+src/components/motion/reveal.tsx
+src/components/motion/scroll-progress.tsx
+src/components/motion/tilt-card.tsx
+src/components/motion/magnetic-button.tsx
+src/components/motion/count-up.tsx
+```
+
+---
+
+## Module 14 — Multi-Provider AI `HOÀN THÀNH`
+
+> Thay lớp gọi Groq cố định bằng abstraction đa-provider; user tự nhập API key
+> (mã hóa trong DB) và chọn model cho từng task trên UI; có auto-fallback.
+
+### Đã implement
+- [x] Schema: enum `AiProvider`, model `UserAiCredential` (key mã hóa, per-user), `UserSettings.ai_generation_model` + `ai_chat_model`
+- [x] `src/lib/crypto.ts` — AES-256-GCM mã hóa/giải mã API key (`ENCRYPTION_KEY` hoặc derive từ `NEXTAUTH_SECRET`)
+- [x] `src/lib/ai/` — `index` (aiComplete/aiStream), `registry`, `resolve`, `providers/*` (openai-compatible, anthropic, google)
+- [x] Refactor 7 call site từ `groq.chat.completions.create` → `aiComplete`/`aiStream`; xóa `src/lib/groq.ts`
+- [x] API: `/api/ai/providers`, `/api/ai/credentials` (GET/POST/DELETE), mở rộng `/api/settings` (generation/chat model)
+- [x] UI Settings: section "AI Models & Providers" (quản lý key + chọn model) + i18n vi/en
+- [x] Dep: thêm `openai`; `@anthropic-ai/sdk` + `@google/generative-ai` chuyển sang dùng thật
+- [x] Migration `20260626000000_add_ai_providers`; build + test pass
+
+### Provider hỗ trợ
+`groq` (mặc định/fallback) · `anthropic` (Claude) · `google` (Gemini) · `openai` (GPT) · `custom` (OpenAI-compatible base URL)
+
+### Files chính
+```
+src/lib/crypto.ts
+src/lib/ai/{index,registry,resolve,types}.ts
+src/lib/ai/providers/{openai-compatible,anthropic,google}.ts
+src/app/api/ai/providers/route.ts
+src/app/api/ai/credentials/route.ts
+src/components/ai-provider-settings.tsx
+```
+
+> **Cần env trước khi dùng:** `GROQ_API_KEY` (bắt buộc — fallback), `ENCRYPTION_KEY`.
+
+---
+
+## Roadmap — Tăng tương tác & giá trị học tập `ĐANG LÊN KẾ HOẠCH`
+
+> Mục tiêu tổng: biến trang goal-detail từ "danh sách việc" thành **không gian học
+> thực sự** + đồng hành trong quá trình học. Chia 3 nhóm theo tỉ lệ giá trị/công sức.
+> Trạng thái khởi điểm: tất cả `Chưa bắt đầu` (cập nhật 2026-06-27).
+
+### Nhóm A — Tận dụng hạ tầng sẵn có `HOÀN THÀNH`
+
+#### M15 — Bài giảng AI theo topic ("Học ngay") ⭐ `HOÀN THÀNH`
+- [x] Schema: model `TopicLesson` (1-1 topic, cache markdown) + migration `20260627000000_add_topic_lesson`
+- [x] Prompt builder `src/lib/prompts/lesson.ts` (khái niệm + ý chính + ví dụ + lỗi thường gặp + bài tập, theo level)
+- [x] `POST /api/topics/[id]/lesson` — sinh & cache (upsert); `GET` trả bài giảng đã có
+- [x] Dùng `aiComplete` qua lớp đa-provider (Module 14) + `getAiLanguageInstruction`
+- [x] **Trang học riêng** `/dashboard/goals/[id]/topics/[topicId]`: nút "Học" ở trang mục tiêu điều hướng
+  sang trang chuyên dụng (bài giảng cỡ lớn + ghi chú + tài nguyên + hỏi AI + điều hướng chủ đề trước/tiếp)
+  thay cho hiển thị inline, cho nhiều không gian tương tác hơn
+- [x] **Hoàn thành bằng bài kiểm tra:** thay nút "đánh dấu hoàn thành" bằng **trắc nghiệm AI** sinh từ nội
+  dung bài giảng (`POST /api/topics/[id]/quiz`, prompt `src/lib/prompts/topic-quiz.ts`, component
+  `topic-quiz.tsx`) — đúng ≥70% mới tự đánh dấu hoàn thành; có giải thích từng câu + làm lại; vẫn giữ
+  tùy chọn đánh dấu thủ công
+
+#### M16 — Ghi chú theo topic `HOÀN THÀNH`
+- [x] `PATCH /api/topics/[id]/progress` đọc/ghi `note` (status optional); `GET /api/goals/[id]/progress` trả note
+- [x] UI: `NoteSection` textarea "📝 Ghi chú" mỗi topic, autosave debounce 700ms
+- [x] i18n vi/en
+
+#### M17 — Daily Check-in + nhật ký học `HOÀN THÀNH`
+- [x] `POST /api/checkins` (upsert user+goal+date hôm nay), `GET /api/checkins?goalId=` (today + history 30 ngày)
+- [x] `CheckinCard` "Hôm nay học thế nào?" (giờ học + mood emoji) trên goal-detail
+- [x] i18n vi/en
+- [ ] (mở rộng sau) Dashboard biểu đồ giờ học/tâm trạng theo thời gian
+
+#### M18 — Hỏi AI ngay tại topic `HOÀN THÀNH`
+- [x] UI: nút "💬 Hỏi AI" mỗi topic → `/dashboard/chat?goalId=&q=...` (seed câu hỏi về topic)
+- [x] Chat page đọc `?q=` để prefill input; reuse `POST /api/chat` + conversation theo goal
+
+### Nhóm B — Tăng tương tác & giữ chân
+
+#### M19 — "Hôm nay học gì" — kế hoạch theo ngày
+- [ ] Thuật toán chia topic theo `week_number` + `hours_per_day` thành buổi học/ngày
+- [ ] View "Today" + chỉ báo tiến độ so với `deadline` (đúng tiến độ / trễ X ngày)
+
+#### M20 — Ôn tập lặp lại ngắt quãng (spaced repetition)
+- [ ] Schema: lịch ôn (next_review_at theo topic đã hoàn thành, khoảng 3/7/14 ngày)
+- [ ] Job/route nhắc ôn + vài câu quiz nhanh (reuse quiz engine)
+- [ ] UI: mục "Cần ôn tập hôm nay"
+
+#### M21 — Weekly Review "có hành động"
+- [ ] Nút "Áp dụng điều chỉnh" trên review → AI cập nhật lại path (giãn/dồn topic theo tiến độ)
+- [ ] Lưu lịch sử thay đổi path
+
+#### M22 — Email nhắc học / giữ streak
+- [ ] Reuse `nodemailer`; cron/scheduled gửi nhắc "chưa học hôm nay" + tóm tắt tuần
+- [ ] Cài đặt bật/tắt nhắc trong Settings
+
+#### M27 — Đồng hồ tập trung Pomodoro `HOÀN THÀNH` (bổ sung, tham khảo studiestimer.com)
+- [x] Schema `StudySession` (phút tập trung/user) + cấu hình Pomodoro trong `UserSettings`
+- [x] `POST/GET /api/study-sessions` — ghi nhận buổi tập trung + thống kê cá nhân (hôm nay/tuần/tổng)
+- [x] **Widget nổi `PomodoroWidget`** (góc trên-phải, dưới navbar, giống chat widget): đặt thời gian
+  focus/break, đếm ngược, tự log khi xong 1 phiên focus; **giữ chạy khi thu nhỏ** (pill hiện mm:ss),
+  chọn mục tiêu, thống kê hôm nay, link leaderboard, chỉnh cấu hình. Mount toàn cục ở dashboard layout
+- [x] Mở từ nơi khác qua sự kiện `pomodoro:open` (nút ở trang học & leaderboard). Đã bỏ trang `/dashboard/focus`
+- [x] i18n vi/en
+
+#### M28 — Bảng xếp hạng (Leaderboard) `HOÀN THÀNH` (bổ sung)
+- [x] `GET /api/leaderboard?range=today|week|all` — tổng phút học theo user + hạng của tôi
+- [x] Tôn trọng quyền riêng tư: `leaderboard_opt_in` (bật/tắt hiển thị) trong Settings
+- [x] Trang `/dashboard/leaderboard`: top học viên + vị trí của tôi (hôm nay/tuần/tổng)
+- [x] i18n vi/en
+
+### Nhóm C — Giá trị thực tiễn & động lực
+
+#### M23 — Bài tập / dự án thực hành theo phase
+- [ ] AI sinh mini-project + checklist tiêu chí
+- [ ] Nộp bài → AI chấm (reuse cơ chế chấm essay Module 9)
+
+#### M24 — Gamification
+- [ ] XP/huy hiệu theo topic + milestone
+- [ ] "Chứng chỉ hoàn thành goal"
+
+#### M25 — Sơ đồ phụ thuộc topic (prerequisite map)
+- [ ] Schema/metadata prerequisite giữa các topic
+- [ ] Trực quan hóa lộ trình dạng bản đồ
+
+---
+
 ## Infrastructure & Tooling
 
 - [x] Next.js 16.2.7 + React 19 + TypeScript strict
@@ -347,8 +567,15 @@ Fix: tách thành `getAiJsonLanguageInstruction()` — chỉ dịch string value
 - [x] Jest + Testing Library (unit tests)
 - [x] Git + GitHub (`toikobi401/learning-path-app`)
 - [x] AI SDK: Groq (`llama-3.3-70b-versatile` generation, `llama-3.1-8b-instant` chat)
+- [x] State: Zustand (client store)
+- [x] Media: Cloudinary (avatar upload)
+- [x] Analytics: `@vercel/analytics`
 - [ ] CI/CD (GitHub Actions)
-- [ ] Deploy (Vercel + Railway/PlanetScale)
+- [ ] Deploy — Vercel + Railway MySQL (xem [deploy_progress.md](deploy_progress.md)) — **Module 26**
+
+> **AI providers:** `@anthropic-ai/sdk` và `@google/generative-ai` đã có sẵn và sẽ được
+> dùng thật khi hoàn thành Module 14 (đa-provider). CLAUDE.md đã cập nhật mô tả kiến trúc
+> đa-provider (Groq mặc định, không còn ghi cứng `claude-sonnet-4-6`).
 
 ---
 

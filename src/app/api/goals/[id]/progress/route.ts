@@ -30,15 +30,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const logs = await prisma.progressLog.findMany({
     where: { user_id: session.user.id, topic_id: { in: topicIds } },
-    select: { topic_id: true, status: true, completed_at: true },
+    select: { topic_id: true, status: true, completed_at: true, note: true },
   });
 
-  // Return as map: topicId → { status, completed_at }
-  const result: Record<string, { status: string; completed_at: string | null }> = {};
+  // Return as map: topicId → { status, completed_at, note }
+  const result: Record<
+    string,
+    { status: string; completed_at: string | null; note: string | null }
+  > = {};
   for (const log of logs) {
     result[log.topic_id] = {
       status: log.status,
       completed_at: log.completed_at?.toISOString() ?? null,
+      note: log.note ?? null,
     };
   }
 

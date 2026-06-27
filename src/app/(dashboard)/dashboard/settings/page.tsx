@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/context";
 import type { Language } from "@/lib/i18n/translations";
+import AiProviderSettings from "@/components/ai-provider-settings";
 
 type Settings = {
   ui_language: Language;
@@ -66,7 +67,7 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t.settings.title}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100"><span className="text-gradient">{t.settings.title}</span></h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t.settings.subtitle}</p>
       </div>
 
@@ -93,8 +94,8 @@ export default function SettingsPage() {
                     onClick={() => setSettings((s) => ({ ...s, ui_language: l }))}
                     className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
                       settings.ui_language === l
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-900/30 dark:text-indigo-300"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700"
+                        ? "border-transparent bg-linear-to-r from-accent to-accent-2 text-white shadow-md shadow-accent/25"
+                        : "border-gray-200 bg-white text-gray-600 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700"
                     }`}
                   >
                     <span>{l === "vi" ? "🇻🇳" : "🇺🇸"}</span>
@@ -124,8 +125,8 @@ export default function SettingsPage() {
                     onClick={() => setSettings((s) => ({ ...s, ai_language: l }))}
                     className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
                       settings.ai_language === l
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-900/30 dark:text-indigo-300"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700"
+                        ? "border-transparent bg-linear-to-r from-accent to-accent-2 text-white shadow-md shadow-accent/25"
+                        : "border-gray-200 bg-white text-gray-600 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700"
                     }`}
                   >
                     <span>{l === "vi" ? "🇻🇳" : "🇺🇸"}</span>
@@ -163,7 +164,7 @@ export default function SettingsPage() {
               onClick={() => setSettings((s) => ({ ...s, show_chat_widget: !s.show_chat_widget }))}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                 settings.show_chat_widget
-                  ? "bg-indigo-600 dark:bg-indigo-500"
+                  ? "bg-accent"
                   : "bg-gray-200 dark:bg-gray-700"
               }`}
             >
@@ -176,12 +177,15 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* AI Models & Providers section */}
+        <AiProviderSettings />
+
         {/* Save button */}
         <div className="flex items-center gap-3">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+            className="btn-primary"
           >
             {saving ? t.settings.saving : t.settings.save}
           </button>

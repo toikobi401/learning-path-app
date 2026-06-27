@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/context";
@@ -233,6 +233,142 @@ function ResourcesSection({
   );
 }
 
+// ─── Note section (Module 16) ────────────────────────────────────────────────
+function NoteSection({
+  topicId,
+  initialNote,
+  onSaved,
+  t,
+}: {
+  topicId: string;
+  initialNote: string;
+  onSaved: (topicId: string, note: string) => void;
+  t: Translations;
+}) {
+  const gd = t.goalDetail;
+  const [value, setValue] = useState(initialNote);
+  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleChange(v: string) {
+    setValue(v);
+    setStatus("saving");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      const res = await fetch(`/api/topics/${topicId}/progress`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: v }),
+      });
+      if (res.ok) {
+        onSaved(topicId, v);
+        setStatus("saved");
+        setTimeout(() => setStatus("idle"), 1500);
+      } else {
+        setStatus("idle");
+      }
+    }, 700);
+  }
+
+  return (
+    <div className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+      <textarea
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder={gd.notePlaceholder}
+        rows={3}
+        className="w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 placeholder:text-gray-400 focus:border-accent/50 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+      />
+      <div className="mt-1 h-4 text-[11px] text-gray-400">
+        {status === "saving" ? gd.noteSaving : status === "saved" ? gd.noteSaved : ""}
+      </div>
+    </div>
+  );
+}
+
+// ─── Daily check-in (Module 17) ──────────────────────────────────────────────
+type Mood = "great" | "good" | "okay" | "hard";
+
+function CheckinCard({ goalId, t }: { goalId: string; t: Translations }) {
+  const gd = t.goalDetail;
+  const [hours, setHours] = useState("");
+  const [mood, setMood] = useState<Mood>("good");
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const moodOptions: { id: Mood; label: string }[] = [
+    { id: "great", label: gd.moodGreat },
+    { id: "good", label: gd.moodGood },
+    { id: "okay", label: gd.moodOkay },
+    { id: "hard", label: gd.moodHard },
+  ];
+
+  useEffect(() => {
+    fetch(`/api/checkins?goalId=${goalId}`).then(async (r) => {
+      if (!r.ok) return;
+      const d = await r.json();
+      if (d.today) {
+        setHours(String(d.today.hours_studied));
+        setMood(d.today.mood);
+        setSaved(true);
+      }
+    });
+  }, [goalId]);
+
+  async function save() {
+    setSaving(true);
+    const res = await fetch("/api/checkins", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goal_id: goalId, hours_studied: Number(hours || 0), mood }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  }
+
+  return (
+    <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex flex-wrap items-center gap-4">
+        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{gd.checkinTitle}</span>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-500 dark:text-gray-400">{gd.checkinHours}</label>
+          <input
+            type="number"
+            min={0}
+            max={24}
+            step={0.5}
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+            className="w-16 rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          {moodOptions.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setMood(m.id)}
+              title={m.label}
+              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                mood === m.id
+                  ? "bg-accent/15 text-accent ring-1 ring-accent/40"
+                  : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={save} disabled={saving} className="btn-primary ml-auto text-sm disabled:opacity-50">
+          {saved ? gd.checkinSaved : gd.checkinSave}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Quiz Modal ───────────────────────────────────────────────────────────────
 type QuizMode = "phase" | "practice";
 type QuizPhaseState = "mode-select" | "loading" | "settings" | "generating" | "question" | "grading" | "result";
@@ -447,7 +583,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
                   <button
                     onClick={startPhaseQuiz}
                     disabled={!phaseQuiz || phaseQuiz.questions.length === 0}
-                    className="shrink-0 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-700 disabled:opacity-40 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
+                    className="shrink-0 rounded-md bg-linear-to-r from-accent to-accent-2 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-accent/25 transition hover:brightness-110 disabled:opacity-40"
                   >
                     {q.start}
                   </button>
@@ -486,7 +622,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
                     <button
                       key={n}
                       onClick={() => setPracticeCount(n)}
-                      className={`flex-1 rounded-md border py-1.5 text-xs font-semibold transition ${practiceCount === n ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500"}`}
+                      className={`flex-1 rounded-md border py-1.5 text-xs font-semibold transition ${practiceCount === n ? "border-transparent bg-linear-to-r from-accent to-accent-2 text-white shadow-sm shadow-accent/20" : "border-gray-200 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500"}`}
                     >
                       {n}
                     </button>
@@ -501,7 +637,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
                     <button
                       key={d}
                       onClick={() => setPracticeDifficulty(d)}
-                      className={`flex-1 rounded-md border py-1.5 text-xs font-semibold capitalize transition ${practiceDifficulty === d ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500"}`}
+                      className={`flex-1 rounded-md border py-1.5 text-xs font-semibold capitalize transition ${practiceDifficulty === d ? "border-transparent bg-linear-to-r from-accent to-accent-2 text-white shadow-sm shadow-accent/20" : "border-gray-200 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500"}`}
                     >
                       {d}
                     </button>
@@ -524,7 +660,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
                           if (isMixed) setPracticeTypes(["mcq", "essay"]);
                           else setPracticeTypes([val]);
                         }}
-                        className={`flex-1 rounded-md border py-1.5 text-xs font-semibold transition ${isActive ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500"}`}
+                        className={`flex-1 rounded-md border py-1.5 text-xs font-semibold transition ${isActive ? "border-transparent bg-linear-to-r from-accent to-accent-2 text-white shadow-sm shadow-accent/20" : "border-gray-200 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500"}`}
                       >
                         {label}
                       </button>
@@ -535,7 +671,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
 
               <button
                 onClick={generatePractice}
-                className="w-full rounded-md bg-gray-900 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
+                className="w-full rounded-md bg-linear-to-r from-accent to-accent-2 py-2 text-sm font-semibold text-white shadow-md shadow-accent/25 transition hover:brightness-110"
               >
                 {q.generateQuestions}
               </button>
@@ -579,7 +715,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
                     const chosen = answers[currentQ]?.type === "mcq" && answers[currentQ].chosen_index === optIdx;
                     return (
                       <button key={optIdx} onClick={() => chooseMcq(optIdx)}
-                        className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all ${chosen ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900" : "border-gray-200 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500"}`}
+                        className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all ${chosen ? "border-transparent bg-linear-to-r from-accent to-accent-2 text-white shadow-sm shadow-accent/20" : "border-gray-200 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500"}`}
                       >
                         <span className="mr-3 font-semibold">{String.fromCharCode(65 + optIdx)}.</span>{opt}
                       </button>
@@ -594,7 +730,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
                   onChange={(e) => updateEssay(e.target.value)}
                   placeholder={q.essayPlaceholder}
                   rows={6}
-                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:ring-gray-100"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
                 />
               )}
 
@@ -609,7 +745,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
                 {currentQ < questions.length - 1 ? (
                   <button
                     onClick={() => setCurrentQ((qq) => qq + 1)}
-                    className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900"
+                    className="rounded-md bg-linear-to-r from-accent to-accent-2 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-accent/25 transition hover:brightness-110"
                   >
                     {q.next}
                   </button>
@@ -689,7 +825,7 @@ function QuizModal({ phase, onClose, t }: { phase: Phase; onClose: () => void; t
                 </button>
                 <button
                   onClick={() => setQuizPhase("mode-select")}
-                  className="flex-1 rounded-md bg-gray-900 py-2 text-xs font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900"
+                  className="flex-1 rounded-md bg-linear-to-r from-accent to-accent-2 py-2 text-xs font-semibold text-white shadow-sm shadow-accent/25 transition hover:brightness-110"
                 >
                   {q.backToMenu}
                 </button>
@@ -717,6 +853,8 @@ export default function GoalDetailPage() {
   const [toggling, setToggling] = useState<string | null>(null);
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set());
   const [resourcesMap, setResourcesMap] = useState<ResourcesMap>({});
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const [notesMap, setNotesMap] = useState<Record<string, string>>({});
   const [quizPhase, setQuizPhase] = useState<Phase | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -731,10 +869,15 @@ export default function GoalDetailPage() {
       setPath(data.path);
     }
     if (progressRes.ok) {
-      const data = await progressRes.json() as Record<string, { status: TopicStatus }>;
+      const data = await progressRes.json() as Record<string, { status: TopicStatus; note?: string | null }>;
       const map: ProgressMap = {};
-      for (const [topicId, log] of Object.entries(data)) map[topicId] = log.status;
+      const notes: Record<string, string> = {};
+      for (const [topicId, log] of Object.entries(data)) {
+        map[topicId] = log.status;
+        if (log.note) notes[topicId] = log.note;
+      }
       setProgress(map);
+      setNotesMap(notes);
     }
     setLoading(false);
   }, [id]);
@@ -752,6 +895,8 @@ export default function GoalDetailPage() {
     setProgress({});
     setExpandedResources(new Set());
     setResourcesMap({});
+    setExpandedNotes(new Set());
+    setNotesMap({});
   }
 
   async function toggleTopic(topicId: string) {
@@ -782,6 +927,18 @@ export default function GoalDetailPage() {
     } else {
       setResourcesMap((m) => ({ ...m, [topicId]: [] }));
     }
+  }
+
+  function toggleInSet(
+    setter: React.Dispatch<React.SetStateAction<Set<string>>>,
+    topicId: string
+  ) {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) next.delete(topicId);
+      else next.add(topicId);
+      return next;
+    });
   }
 
   if (loading) {
@@ -821,7 +978,7 @@ export default function GoalDetailPage() {
         <span className="truncate text-gray-600 dark:text-gray-300">{goal.title}</span>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -874,7 +1031,7 @@ export default function GoalDetailPage() {
                   <span>{progressPct}%</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                  <div className="h-2 rounded-full bg-green-500 transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                  <div className="h-2 rounded-full bg-linear-to-r from-accent via-accent-2 to-accent-3 transition-all duration-500" style={{ width: `${progressPct}%` }} />
                 </div>
               </div>
             )}
@@ -907,8 +1064,8 @@ export default function GoalDetailPage() {
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{gd.noPath}</p>
             <p className="mx-auto mt-1 max-w-xs text-xs text-gray-500 dark:text-gray-400">{gd.noPathDesc}</p>
           </div>
-          <button onClick={handleGenerate}
-            className="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300">
+          <button onClick={handleGenerate} className="btn-primary">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
             {gd.generatePath}
           </button>
         </div>
@@ -916,6 +1073,8 @@ export default function GoalDetailPage() {
 
       {path && !generating && (
         <div className="mt-4 space-y-4">
+          <CheckinCard goalId={id} t={t} />
+
           {path.raw_json?.overview && (
             <div className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{gd.overview}</p>
@@ -957,6 +1116,8 @@ export default function GoalDetailPage() {
                     const isCompleted = status === "completed";
                     const isToggling = toggling === topic.id;
                     const isResourcesExpanded = expandedResources.has(topic.id);
+                    const isNoteExpanded = expandedNotes.has(topic.id);
+                    const askHref = `/dashboard/chat?goalId=${id}&q=${encodeURIComponent(`${gd.askAiPrompt}: ${topic.title}`)}`;
 
                     return (
                       <div key={topic.id}
@@ -977,12 +1138,40 @@ export default function GoalDetailPage() {
                             <p className={`mt-1.5 text-xs leading-relaxed transition-colors ${isCompleted ? "text-gray-400 dark:text-gray-600" : "text-gray-500 dark:text-gray-400"}`}>
                               {topic.description}
                             </p>
-                            <button
-                              onClick={() => toggleResources(topic.id)}
-                              className="mt-2 text-xs font-medium text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                            >
-                              {isResourcesExpanded ? gd.hideResources : gd.showResources}
-                            </button>
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <Link
+                                href={`/dashboard/goals/${id}/topics/${topic.id}`}
+                                className="text-xs font-medium text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                              >
+                                {gd.learn} →
+                              </Link>
+                              <button
+                                onClick={() => toggleInSet(setExpandedNotes, topic.id)}
+                                className="text-xs font-medium text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                              >
+                                {isNoteExpanded ? gd.hideNote : gd.note}
+                              </button>
+                              <Link
+                                href={askHref}
+                                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                              >
+                                {gd.askAi}
+                              </Link>
+                              <button
+                                onClick={() => toggleResources(topic.id)}
+                                className="text-xs font-medium text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                              >
+                                {isResourcesExpanded ? gd.hideResources : gd.showResources}
+                              </button>
+                            </div>
+                            {isNoteExpanded && (
+                              <NoteSection
+                                topicId={topic.id}
+                                initialNote={notesMap[topic.id] ?? ""}
+                                onSaved={(topicId, note) => setNotesMap((m) => ({ ...m, [topicId]: note }))}
+                                t={t}
+                              />
+                            )}
                             {isResourcesExpanded && (
                               <ResourcesSection
                                 topicId={topic.id}

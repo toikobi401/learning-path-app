@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { groq, MODELS } from "@/lib/groq";
+import { aiComplete } from "@/lib/ai";
 import { buildQuizPrompt, type QuizDifficulty, type QuestionType } from "@/lib/prompts/quiz";
 import { getUserAiLanguage, getAiJsonLanguageInstruction } from "@/lib/i18n/ai-language";
 
@@ -67,13 +67,12 @@ export async function POST(
 
   let questions: GeneratedQuestion[] = [];
   try {
-    const completion = await groq.chat.completions.create({
-      model: MODELS.generation,
-      messages: [{ role: "user", content: prompt + getAiJsonLanguageInstruction(aiLang) }],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-    });
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const raw =
+      (await aiComplete(session.user.id, "generation", {
+        messages: [{ role: "user", content: prompt + getAiJsonLanguageInstruction(aiLang) }],
+        json: true,
+        temperature: 0.7,
+      })) || "{}";
     const parsed = JSON.parse(raw) as { questions?: GeneratedQuestion[] };
     questions = (parsed.questions ?? []).slice(0, count);
   } catch {

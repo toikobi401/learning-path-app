@@ -12,9 +12,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const { id } = await params;
-  const { status } = (await req.json()) as { status: string };
+  const body = (await req.json()) as { status?: string; note?: string };
+  const hasStatus = typeof body.status === "string";
+  const hasNote = typeof body.note === "string";
 
-  if (!["not_started", "in_progress", "completed"].includes(status)) {
+  if (!hasStatus && !hasNote) {
+    return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
+  }
+  if (hasStatus && !["not_started", "in_progress", "completed"].includes(body.status!)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
@@ -34,13 +39,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  const completed_at =
-    status === "completed" ? new Date() : null;
+  const status = body.status as "not_started" | "in_progress" | "completed" | undefined;
+  const note = hasNote ? body.note! : undefined;
 
   const log = await prisma.progressLog.upsert({
     where: { user_id_topic_id: { user_id: session.user.id, topic_id: id } },
-    create: { user_id: session.user.id, topic_id: id, status: status as "not_started" | "in_progress" | "completed", completed_at },
-    update: { status: status as "not_started" | "in_progress" | "completed", completed_at },
+    create: {
+      user_id: session.user.id,
+      topic_id: id,
+      status: status ?? "not_started",
+      completed_at: status === "completed" ? new Date() : null,
+      note: note ?? null,
+    },
+    update: {
+      ...(hasStatus
+        ? { status, completed_at: status === "completed" ? new Date() : null }
+        : {}),
+      ...(hasNote ? { note } : {}),
+    },
   });
 
   return NextResponse.json(log);
