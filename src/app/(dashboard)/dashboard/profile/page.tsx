@@ -103,7 +103,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl">
       <div className="mb-8 border-b border-gray-200 pb-6 dark:border-gray-800">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Profile</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100"><span className="text-gradient">Profile</span></h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Manage your personal information.
         </p>
@@ -127,7 +127,7 @@ export default function ProfilePage() {
                 unoptimized
               />
             ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-900 text-xl font-bold text-white dark:bg-gray-100 dark:text-gray-900">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-linear-to-br from-accent to-accent-3 text-xl font-bold text-white shadow-lg shadow-accent/30">
                 {initials}
               </div>
             )}
@@ -142,7 +142,7 @@ export default function ProfilePage() {
             <button
               onClick={() => fileRef.current?.click()}
               disabled={avatarLoading}
-              className="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+              className="btn-outline"
             >
               {avatarLoading ? "Uploading..." : "Change avatar"}
             </button>
@@ -176,13 +176,13 @@ export default function ProfilePage() {
               onChange={(e) => setName(e.target.value)}
               required
               minLength={2}
-              className="mt-1.5 block w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+              className="field mt-1.5"
             />
           </div>
           <button
             type="submit"
             disabled={nameLoading}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
+            className="btn-primary"
           >
             {nameLoading ? "Saving..." : "Save"}
           </button>

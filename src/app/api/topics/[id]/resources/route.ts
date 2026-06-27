@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { groq, MODELS } from "@/lib/groq";
+import { aiComplete } from "@/lib/ai";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -110,18 +110,16 @@ Rules:
 - type must be one of: article, video, course, doc
 - Return exactly 4-5 resources`;
 
-  const completion = await groq.chat.completions.create({
-    model: MODELS.generation,
-    messages: [
-      { role: "system", content: "You are a learning resource curator. Return only valid JSON." },
-      { role: "user", content: prompt },
-    ],
-    response_format: { type: "json_object" },
-    temperature: 0.5,
-    max_tokens: 1024,
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const raw =
+    (await aiComplete(session.user.id, "generation", {
+      messages: [
+        { role: "system", content: "You are a learning resource curator. Return only valid JSON." },
+        { role: "user", content: prompt },
+      ],
+      json: true,
+      temperature: 0.5,
+      maxTokens: 1024,
+    })) || "{}";
   let parsed: { resources?: Array<{ title: string; url: string; type: string }> };
 
   try {

@@ -19,8 +19,7 @@ function tomorrowString() {
   return d.toISOString().split("T")[0];
 }
 
-const inputCls =
-  "mt-1.5 block w-full rounded-md border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-gray-600 dark:focus:ring-gray-800";
+const inputCls = "field mt-1.5";
 
 export default function NewGoalPage() {
   const router = useRouter();
@@ -89,7 +88,7 @@ export default function NewGoalPage() {
           <div className="mt-1.5 grid grid-cols-3 gap-2">
             {LEVELS.map(({ value, label }) => (
               <button key={value} type="button" onClick={() => set("level", value)}
-                className={`rounded-md border px-3 py-2.5 text-sm font-medium transition ${form.level === value ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"}`}>
+                className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${form.level === value ? "border-transparent bg-linear-to-r from-accent to-accent-2 text-white shadow-md shadow-accent/25" : "border-gray-200 bg-white text-gray-600 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"}`}>
                 {label}
               </button>
             ))}
@@ -113,10 +112,10 @@ export default function NewGoalPage() {
         )}
 
         <div className="flex items-center justify-end gap-3 pt-2">
-          <Link href="/dashboard/goals" className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
+          <Link href="/dashboard/goals" className="btn-outline">
             {ng.cancel}
           </Link>
-          <button type="submit" disabled={loading} className="rounded-md bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300">
+          <button type="submit" disabled={loading} className="btn-primary">
             {loading ? ng.creating : ng.create}
           </button>
         </div>

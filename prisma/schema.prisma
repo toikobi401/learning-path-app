@@ -30,18 +30,58 @@ model User {
   phase_quiz_attempts   PhaseQuizAttempt[]
   practice_attempts     PracticeAttempt[]
   settings              UserSettings?
+  ai_credentials        UserAiCredential[]
+  study_sessions        StudySession[]
 }
 
 model UserSettings {
-  id                String   @id @default(cuid())
-  user_id           String   @unique
-  ui_language       String   @default("vi")
-  ai_language       String   @default("vi")
-  show_chat_widget  Boolean  @default(true)
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  user_id              String   @unique
+  ui_language          String   @default("vi")
+  ai_language          String   @default("vi")
+  show_chat_widget     Boolean  @default(true)
+  ai_generation_model  String?  // "provider:modelId"; null = default hệ thống
+  ai_chat_model        String?  // "provider:modelId"; null = default hệ thống
+  pomodoro_focus_min   Int      @default(25)
+  pomodoro_break_min   Int      @default(5)
+  pomodoro_long_break_min Int   @default(15)
+  pomodoro_rounds      Int      @default(4)
+  leaderboard_opt_in   Boolean  @default(true)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+// Buổi học tập trung (Pomodoro) — nguồn dữ liệu cho thống kê cá nhân + leaderboard (M27/M28)
+model StudySession {
+  id         String   @id @default(cuid())
+  user_id    String
+  goal_id    String?  // mục tiêu được gán (tùy chọn)
+  minutes    Int      // số phút tập trung đã hoàn thành
+  source     String   @default("pomodoro") // pomodoro | manual
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([created_at])
+}
+
+// API key người dùng cho từng AI provider — api_key_enc đã được mã hóa AES-256-GCM
+model UserAiCredential {
+  id          String     @id @default(cuid())
+  user_id     String
+  provider    AiProvider
+  label       String?
+  api_key_enc String     @db.Text
+  base_url    String?    // bắt buộc cho provider = custom (OpenAI-compatible endpoint)
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, provider])
 }
 
 model Account {
@@ -137,6 +177,18 @@ model Topic {
   phase         Phase         @relation(fields: [phase_id], references: [id], onDelete: Cascade)
   resources     Resource[]
   progress_logs ProgressLog[]
+  lesson        TopicLesson?
+}
+
+// Bài giảng AI sinh theo topic — cache 1-1 với topic (Module 15)
+model TopicLesson {
+  id         String   @id @default(cuid())
+  topic_id   String   @unique
+  content    String   @db.Text // markdown
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  topic Topic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
 }
 
 model Resource {
@@ -338,4 +390,12 @@ enum QuizDifficulty {
 enum QuestionType {
   mcq
   essay
+}
+
+enum AiProvider {
+  groq
+  anthropic
+  google
+  openai
+  custom
 }

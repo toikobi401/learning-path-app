@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { groq, MODELS } from "@/lib/groq";
+import { aiStream, type AiMessage } from "@/lib/ai";
 import { getUserAiLanguage, getAiLanguageInstruction } from "@/lib/i18n/ai-language";
 
 export async function POST(req: NextRequest) {
@@ -145,8 +145,8 @@ Your role:
     data: { updated_at: new Date() },
   });
 
-  // Build Groq messages
-  const groqMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+  // Build messages cho lớp AI đa-provider
+  const aiMessages: AiMessage[] = [
     { role: "system", content: systemPrompt },
     ...orderedHistory.map((m) => ({
       role: m.role as "user" | "assistant",
@@ -155,12 +155,10 @@ Your role:
     { role: "user", content: message.trim() },
   ];
 
-  // Stream from Groq
-  const stream = await groq.chat.completions.create({
-    model: MODELS.chat,
-    messages: groqMessages,
-    stream: true,
-    max_tokens: 1024,
+  // Stream qua lớp AI (provider user chọn + fallback Groq hệ thống)
+  const stream = aiStream(userId, "chat", {
+    messages: aiMessages,
+    maxTokens: 1024,
     temperature: 0.7,
   });
 
@@ -174,8 +172,7 @@ Your role:
       controller.enqueue(encoder.encode(`[CONV_ID:${convId}]\n`));
 
       try {
-        for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content ?? "";
+        for await (const text of stream) {
           if (text) {
             fullResponse += text;
             controller.enqueue(encoder.encode(text));

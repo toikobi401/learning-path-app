@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { groq, MODELS } from "@/lib/groq";
+import { aiComplete } from "@/lib/ai";
 import { buildLearningPathPrompt } from "@/lib/prompts/learning-path";
 import { buildQuizPrompt } from "@/lib/prompts/quiz";
 import { getUserAiLanguage, getAiJsonLanguageInstruction } from "@/lib/i18n/ai-language";
@@ -41,6 +41,7 @@ type GeneratedQuestion = {
 };
 
 async function generatePhaseQuiz(
+  userId: string,
   phaseId: string,
   phaseTitle: string,
   goalTitle: string,
@@ -59,13 +60,12 @@ async function generatePhaseQuiz(
   });
 
   try {
-    const completion = await groq.chat.completions.create({
-      model: MODELS.generation,
-      messages: [{ role: "user", content: prompt + getAiJsonLanguageInstruction(aiLang) }],
-      response_format: { type: "json_object" },
-      temperature: 0.6,
-    });
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const raw =
+      (await aiComplete(userId, "generation", {
+        messages: [{ role: "user", content: prompt + getAiJsonLanguageInstruction(aiLang) }],
+        json: true,
+        temperature: 0.6,
+      })) || "{}";
     const parsed = JSON.parse(raw) as { questions?: GeneratedQuestion[] };
     const questions = (parsed.questions ?? []).slice(0, 7);
 
@@ -140,22 +140,20 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   let parsed: ParsedPath;
   try {
-    const completion = await groq.chat.completions.create({
-      model: MODELS.generation,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert curriculum designer. Always respond with valid JSON only, no markdown, no extra text.",
-        },
-        { role: "user", content: prompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.6,
-      max_tokens: 4096,
-    });
-
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const raw =
+      (await aiComplete(session.user.id, "generation", {
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert curriculum designer. Always respond with valid JSON only, no markdown, no extra text.",
+          },
+          { role: "user", content: prompt },
+        ],
+        json: true,
+        temperature: 0.6,
+        maxTokens: 4096,
+      })) || "{}";
     parsed = JSON.parse(raw) as ParsedPath;
   } catch {
     return NextResponse.json(
@@ -208,6 +206,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   void Promise.all(
     learningPath.phases.map((phase, i) =>
       generatePhaseQuiz(
+        session.user.id,
         phase.id,
         phase.title,
         goal.title,

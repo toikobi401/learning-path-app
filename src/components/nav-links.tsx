@@ -11,6 +11,7 @@ export function NavLinks() {
   const LINKS = [
     { href: "/dashboard", label: t.nav.overview, exact: true },
     { href: "/dashboard/goals", label: t.nav.goals, exact: false },
+    { href: "/dashboard/leaderboard", label: t.nav.leaderboard, exact: false },
     { href: "/dashboard/review", label: t.nav.review, exact: false },
     { href: "/dashboard/chat", label: t.nav.chat, exact: false },
     { href: "/dashboard/settings", label: t.nav.settings, exact: false },
@@ -26,8 +27,8 @@ export function NavLinks() {
             href={href}
             className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
               active
-                ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-                : "text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+                ? "bg-accent/10 font-medium text-accent dark:bg-accent/15"
+                : "text-gray-500 hover:bg-gray-100/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
             }`}
           >
             {label}

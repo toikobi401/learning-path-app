@@ -73,7 +73,7 @@ function ResetPasswordForm() {
   return (
     <div>
       <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-        Reset password
+        Reset <span className="text-gradient">password</span>
       </h1>
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
         Enter the code sent to{" "}
@@ -103,7 +103,7 @@ function ResetPasswordForm() {
                 value={digit}
                 onChange={(e) => handleOtpChange(i, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(i, e)}
-                className="h-12 w-full rounded-md border border-gray-200 bg-white text-center text-lg font-semibold text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+                className="h-12 w-full rounded-lg border border-gray-200 bg-white/70 text-center text-lg font-semibold text-gray-900 outline-none transition-all duration-200 focus:border-accent focus:ring-4 focus:ring-accent/15 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100 dark:focus:border-accent"
               />
             ))}
           </div>
@@ -121,14 +121,14 @@ function ResetPasswordForm() {
             placeholder="Min. 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1.5 block w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-600 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+            className="field mt-1.5"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
+          className="btn-primary w-full"
         >
           {loading ? "Resetting..." : "Set new password"}
         </button>

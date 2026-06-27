@@ -51,6 +51,7 @@ function ChatPageInner() {
   const ct = t.conversations;
   const searchParams = useSearchParams();
   const urlGoalId = searchParams.get("goalId");
+  const urlPrompt = searchParams.get("q");
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -122,6 +123,14 @@ function ChatPageInner() {
     };
     init();
   }, [urlGoalId]);
+
+  // Prefill input từ ?q= (Module 18 — "Hỏi AI" tại topic)
+  useEffect(() => {
+    if (urlPrompt) {
+      setInput(urlPrompt);
+      inputRef.current?.focus();
+    }
+  }, [urlPrompt]);
 
   // Load messages when active conversation changes
   useEffect(() => {
@@ -300,7 +309,7 @@ function ChatPageInner() {
         <div className="p-3 border-b border-neutral-200 dark:border-neutral-700">
           <button
             onClick={() => setShowNewModal(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-linear-to-r from-accent to-accent-2 hover:brightness-110 text-white text-sm font-medium transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -362,7 +371,7 @@ function ChatPageInner() {
                 {activeConv.title || ct.untitled}
               </span>
               {activeConv.goal_title && (
-                <span className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                <span className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-accent/10 dark:bg-accent/20 text-accent">
                   {ct.goalBadge} {activeConv.goal_title}
                 </span>
               )}
@@ -389,7 +398,7 @@ function ChatPageInner() {
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
                       m.role === "user"
-                        ? "bg-blue-600 text-white rounded-br-sm"
+                        ? "bg-linear-to-br from-accent to-accent-2 text-white rounded-br-sm shadow-md shadow-accent/20"
                         : "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-bl-sm"
                     }`}
                   >
@@ -415,7 +424,7 @@ function ChatPageInner() {
               placeholder={t.chat.placeholder}
               rows={1}
               disabled={streaming}
-              className="flex-1 resize-none rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50 min-h-[42px] max-h-32"
+              className="flex-1 resize-none rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-4 py-2.5 text-sm outline-none transition-all duration-200 focus:border-accent focus:ring-4 focus:ring-accent/15 disabled:opacity-50 min-h-[42px] max-h-32"
               onInput={(e) => {
                 const el = e.currentTarget;
                 el.style.height = "auto";
@@ -425,7 +434,7 @@ function ChatPageInner() {
             <button
               onClick={handleSend}
               disabled={!input.trim() || streaming}
-              className="flex-shrink-0 w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors"
+              className="flex-shrink-0 w-10 h-10 rounded-xl bg-linear-to-r from-accent to-accent-2 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors"
             >
               {streaming ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -470,7 +479,7 @@ function ChatPageInner() {
               <button
                 onClick={handleCreateConv}
                 disabled={creatingConv}
-                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50"
+                className="flex-1 px-4 py-2 rounded-lg bg-linear-to-r from-accent to-accent-2 hover:brightness-110 text-white text-sm font-medium disabled:opacity-50"
               >
                 {creatingConv ? t.common.loading : ct.newChatTitle}
               </button>
@@ -514,8 +523,8 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center">
-      <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center mb-3">
-        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="w-12 h-12 rounded-full bg-linear-to-br from-accent to-accent-3 flex items-center justify-center mb-3 shadow-lg shadow-accent/30">
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -531,7 +540,7 @@ function EmptyState({
           <button
             key={s}
             onClick={() => onSuggestion(s)}
-            className="text-xs px-3 py-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="text-xs px-3 py-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:text-accent"
           >
             {s}
           </button>
@@ -568,7 +577,7 @@ function ConversationItem({
     <div
       className={`group relative mx-2 my-0.5 rounded-lg cursor-pointer flex items-center gap-2 px-3 py-2 transition-colors ${
         isActive
-          ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200"
+          ? "bg-accent/10 dark:bg-accent/20 text-accent"
           : "hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
       }`}
       onMouseEnter={() => setHovered(true)}
